@@ -117,13 +117,13 @@ class BaseTrainer:
             # Save metrics to a DataFrame and CSV
             metrics_df = pd.DataFrame({
                 'Epoch': metrics_history['Epoch'],
-                'Train Loss': [loss.item() for loss in metrics_history['Train Loss']],
+                'Train Loss': metrics_history['Train Loss'],
                 'Train Accuracy': [acc.item() for acc in metrics_history['Train Accuracy']],
                 'Train F1': [f1.item() for f1 in metrics_history['Train F1']],
-                'Test Loss': [loss.item() for loss in metrics_history['Test Loss']],
+                'Test Loss': metrics_history['Test Loss'],
                 'Test Accuracy': [acc.item() for acc in metrics_history['Test Accuracy']],
                 'Test F1': [f1.item() for f1 in metrics_history['Test F1']],
-                'Validation Loss': [loss.item() for loss in metrics_history['Validation Loss']],
+                'Validation Loss': metrics_history['Validation Loss'],
                 'Validation Accuracy': [acc.item() for acc in metrics_history['Validation Accuracy']],
                 'Validation F1': [f1.item() for f1 in metrics_history['Validation F1']]
             })
