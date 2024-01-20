@@ -74,7 +74,7 @@ if __name__ == "__main__":
     # Add padding to images with progress bar
     image_padder.add_padding_to_images()
 
-    # Create a random image plot and save it as JPEG with 300 DPI
-    image_padder.create_random_image_plot(args.output_folder)
+    # Create a random image plot for the training dataset and save it as JPEG with 300 DPI
+    image_padder.create_random_image_plot(os.path.join(args.output_folder, 'train'))
 
-    print("Padding added to images and random image plot saved successfully.")
+    print("Padding added to images and random image plot for training dataset saved successfully.")
