@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm  # Import tqdm for progress bars
 
 # Configure logging
-logging.basicConfig(filename='../logs/training.log', level=logging.INFO,
+logging.basicConfig(filename='./logs/training.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s: %(message)s')
 
 
@@ -20,7 +20,7 @@ class CustomDataLoader:
     MEAN = [0.485, 0.456, 0.406]
     STD_DEV = [0.229, 0.224, 0.225]
 
-    def __init__(self, base_folder="./datasets/vision/Vision_data", batch_size=256, num_workers=6):
+    def __init__(self, base_folder="./datasets/Vision_data", batch_size=256, num_workers=6):
         self.base_folder = base_folder
         self.batch_size = batch_size
         self.num_workers = num_workers

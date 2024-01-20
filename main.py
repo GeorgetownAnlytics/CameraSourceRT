@@ -6,7 +6,7 @@ from models.resnet_trainer import ResNet50Trainer, ResNet101Trainer
 from models.resnet_trainer import ResNet152Trainer
 
 
-def initialize_trainer(model_name, train_loader, test_loader, validation_loader, device, loss_function, num_epochs):
+def initialize_trainer(model_name, train_loader, test_loader, validation_loader, device, loss_function, num_epochs=10):
     # Get num_classes from the data loader
     num_classes = len(train_loader.dataset.classes)
 
@@ -24,8 +24,7 @@ def initialize_trainer(model_name, train_loader, test_loader, validation_loader,
     else:
         raise ValueError(f"Unsupported ResNet model name: {model_name}")
 
-    # Set the device and loss function for the trainer
-    trainer.set_device(device)
+    # Set the loss function for the trainer
     trainer.set_loss_function(loss_function)
 
     return trainer
