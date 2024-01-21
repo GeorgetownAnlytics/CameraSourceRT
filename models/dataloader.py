@@ -11,7 +11,7 @@ class CustomDataLoader:
     IMAGE_SIZE = (224, 224)
     MEAN_STD_FILE = "mean_std.json"
 
-    def __init__(self, base_folder="./datasets/Vision_data", batch_size=256, num_workers=6):
+    def __init__(self, base_folder="./datasets/Vision_data", batch_size=128, num_workers=4):
         self.base_folder = base_folder
         self.batch_size = batch_size
         self.num_workers = num_workers

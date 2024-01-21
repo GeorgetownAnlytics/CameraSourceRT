@@ -15,7 +15,7 @@ def validate_input(prompt, default, valid_options=None):
 
 def main():
     num_epochs = int(validate_input(
-        "Enter the number of total epochs (default is 5): ", "5"))
+        "Enter the number of total epochs (default is 40): ", "40"))
     device = validate_input(
         "Enter 'cuda' for GPU or 'cpu' for CPU (default is 'cuda'): ", "cuda", ["cuda", "cpu"])
     loss_choice = validate_input("Choose the loss function: 'crossentropy' or 'multiclass_hinge' (default is 'crossentropy'): ", "crossentropy", [

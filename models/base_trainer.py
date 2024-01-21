@@ -54,7 +54,7 @@ class BaseTrainer:
     def set_loss_function(self, loss_function):
         self.loss_function = loss_function
 
-    def train(self, num_epochs=5, warmup_epochs=1):
+    def train(self, num_epochs=40, warmup_epochs=8):
         if num_epochs <= warmup_epochs:
             raise ValueError("num_epochs must be greater than warmup_epochs.")
         self.model.train()
