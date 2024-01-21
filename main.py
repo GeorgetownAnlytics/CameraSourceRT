@@ -1,4 +1,6 @@
 import os
+import numpy as np
+import pandas as pd
 import torch
 from models.dataloader import CustomDataLoader
 from models.resnet_trainer import ResNetTrainer
@@ -44,26 +46,14 @@ def main():
         trainer.set_loss_function(loss_function)
 
         metrics_history = trainer.train(num_epochs=num_epochs)
+
+        # Save metrics to CSV and plot extended metrics
+        trainer._save_metrics_to_csv(metrics_history)
+        trainer._plot_extended_metrics(pd.DataFrame(
+            metrics_history), model_output_folder, trainer.model, validation_loader)
+
         print(
             f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}")
-
-        class_names = train_loader.dataset.classes  # Adjust this to your dataset
-        train_cm = trainer._calculate_confusion_matrix(train_loader)
-        trainer._plot_and_save_confusion_matrix(
-            train_cm, 'train', model_output_folder, class_names)
-        trainer.save_confusion_matrix_csv(
-            train_cm, 'train', model_output_folder)
-
-        test_cm = trainer._calculate_confusion_matrix(test_loader)
-        trainer._plot_and_save_confusion_matrix(
-            test_cm, 'test', model_output_folder, class_names)
-        trainer.save_confusion_matrix_csv(test_cm, 'test', model_output_folder)
-
-        validation_cm = trainer._calculate_confusion_matrix(validation_loader)
-        trainer._plot_and_save_confusion_matrix(
-            validation_cm, 'validation', model_output_folder, class_names)
-        trainer.save_confusion_matrix_csv(
-            validation_cm, 'validation', model_output_folder)
 
         print(f"Training and evaluation for model {model_name} completed.\n")
 
