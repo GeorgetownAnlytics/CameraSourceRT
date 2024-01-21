@@ -146,3 +146,4 @@ output/*.pth
 .RData
 .Rhistory
 **.pth
+.DS_Store
