@@ -55,6 +55,14 @@ class BaseTrainer:
             task="multiclass", num_classes=num_classes).to(self.device)
         self.test_f1 = torchmetrics.F1Score(
             task="multiclass", num_classes=num_classes).to(self.device)
+        self.train_precision = torchmetrics.Precision(
+            task="multiclass", num_classes=num_classes, average='macro').to(self.device)
+        self.validation_precision = torchmetrics.Precision(
+            task="multiclass", num_classes=num_classes, average='macro').to(self.device)
+        self.train_recall = torchmetrics.Recall(
+            task="multiclass", num_classes=num_classes, average='macro').to(self.device)
+        self.validation_recall = torchmetrics.Recall(
+            task="multiclass", num_classes=num_classes, average='macro').to(self.device)
 
     def set_device(self, device):
         self.device = torch.device(device)
@@ -99,6 +107,8 @@ class BaseTrainer:
                 loss = self.loss_function(outputs, labels)
                 loss.backward()
                 self.train_top5_accuracy.update(outputs, labels)
+                self.train_precision.update(predicted, labels)
+                self.train_recall.update(predicted, labels)
                 optimizer.step()
 
                 running_loss += loss.item()
@@ -110,11 +120,15 @@ class BaseTrainer:
             avg_loss = running_loss / total_batches
             train_accuracy = self.train_accuracy.compute()
             train_f1_score = self.train_f1.compute()
-
+            train_precision = self.train_precision.compute().item()  # Convert to Python scalar
+            train_recall = self.train_recall.compute().item()  # Convert to Python scalar
+            
             metrics_history['Epoch'].append(epoch + 1)
             metrics_history['Train Loss'].append(avg_loss)
             metrics_history['Train Accuracy'].append(train_accuracy)
             metrics_history['Train F1'].append(train_f1_score)
+            metrics_history['Train Precision'].append(train_precision)
+            metrics_history['Train Recall'].append(train_recall)
 
             val_loss, val_accuracy, val_f1 = self._evaluate_loss_accuracy(
                 self.validation_loader, self.validation_accuracy, self.validation_f1)
@@ -128,6 +142,11 @@ class BaseTrainer:
             metrics_history['Validation Accuracy'].append(val_accuracy)
             metrics_history['Validation F1'].append(val_f1)
 
+            val_precision, val_recall = self._evaluate_additional_metrics(
+                self.validation_loader, self.validation_precision, self.validation_recall)
+            metrics_history['Validation Precision'].append(val_precision)
+            metrics_history['Validation Recall'].append(val_recall)
+            
             print(f"Epoch {epoch + 1}/{num_epochs} Completed: Train Loss: {avg_loss},\
                 Train Accuracy: {train_accuracy}, Train F1: {train_f1_score}, Validation Loss: {val_loss},\
                     Validation Accuracy: {val_accuracy}, Validation F1: {val_f1}")
@@ -235,6 +254,11 @@ class BaseTrainer:
         plt.close()
 
     def _save_metrics_to_csv(self, metrics_history):
+        # Convert all tensor values in metrics_history to CPU and then to NumPy
+        for key in metrics_history:
+            metrics_history[key] = [x.cpu().numpy() if torch.is_tensor(
+                x) else x for x in metrics_history[key]]
+
         metrics_df = pd.DataFrame(metrics_history)
         metrics_csv_path = os.path.join(
             self.output_folder, "training_metrics.csv")
@@ -262,6 +286,20 @@ class BaseTrainer:
         plot_filename = os.path.join(output_folder, 'metrics_over_epochs.pdf')
         plt.savefig(plot_filename, format='pdf', bbox_inches='tight')
         plt.close()
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(metrics_history['Epoch'], metrics_history['Train Precision'], label='Train Precision')
+        plt.plot(metrics_history['Epoch'], metrics_history['Train Recall'], label='Train Recall')
+        plt.plot(metrics_history['Epoch'], metrics_history['Validation Precision'], label='Validation Precision')
+        plt.plot(metrics_history['Epoch'], metrics_history['Validation Recall'], label='Validation Recall')
+        plt.xlabel('Epoch')
+        plt.ylabel('Metric Value')
+        plt.title('Training and Validation Precision and Recall')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(os.path.join(output_folder, 'precision_recall_plot.pdf'))
+        plt.close()
+
 
     def _plot_extended_metrics(self, metrics_df, output_folder, model, loader):
         # Ensure output folder exists
@@ -345,6 +383,18 @@ class BaseTrainer:
         plt.legend(loc="lower right")
         plt.savefig(os.path.join(output_folder, 'multiclass_roc_curve.pdf'))
         plt.close()
+        
+    def _evaluate_additional_metrics(self, data_loader, precision_metric, recall_metric):
+        precision_metric.reset()
+        recall_metric.reset()
+        with torch.no_grad():
+            for inputs, labels in data_loader:
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                outputs = self.model(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                precision_metric.update(predicted, labels)
+                recall_metric.update(predicted, labels)
+        return precision_metric.compute().item(), recall_metric.compute().item()
 
 
 if __name__ == "__main__":
