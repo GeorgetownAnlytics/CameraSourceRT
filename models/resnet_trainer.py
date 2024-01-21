@@ -1,75 +1,83 @@
-from .base_trainer import BaseTrainer
-from torchvision import models
+import torch
 import torch.nn as nn
+from torchvision import models
+import os
+from .dataloader import CustomDataLoader
+from .base_trainer import BaseTrainer
 
 
-class ResNet18Trainer(BaseTrainer):
-    def __init__(self, train_loader, test_loader, validation_loader, num_classes):
-        model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        layers_to_extract = ['layer1', 'layer2', 'layer3', 'layer4']
+# Dictionary of supported model names with their corresponding model functions
+supported_models = {
+    'resnet18':  models.resnet18,
+    'resnet34':  models.resnet34,
+    'resnet50':  models.resnet50,
+    'resnet101': models.resnet101,
+    'resnet152': models.resnet152
+}
 
-        # Replace the last fully connected layer with a new linear layer
+supported_weights = {
+    'resnet18': models.ResNet18_Weights.IMAGENET1K_V1,
+    'resnet34': models.ResNet34_Weights.IMAGENET1K_V1,
+    'resnet50': models.ResNet50_Weights.IMAGENET1K_V2,
+    'resnet101': models.ResNet101_Weights.IMAGENET1K_V2,
+    'resnet152': models.ResNet152_Weights.IMAGENET1K_V2
+}
+
+
+class ResNetTrainer(BaseTrainer):
+    """
+    A trainer class for ResNet models.
+
+    This class inherits from BaseTrainer and is specialized for training various
+    ResNet models with custom configurations.
+
+    Attributes:
+        model (nn.Module): The ResNet model to be trained.
+        train_loader (DataLoader): DataLoader for the training dataset.
+        test_loader (DataLoader): DataLoader for the test dataset.
+        validation_loader (DataLoader): DataLoader for the validation dataset.
+    """
+
+    def __init__(self, train_loader, test_loader, validation_loader, num_classes, model_name='resnet18'):
+        """
+        Initializes the ResNetTrainer with the specified model, data loaders, and number of classes.
+
+        Args:
+            train_loader (DataLoader): DataLoader for the training dataset.
+            test_loader (DataLoader): DataLoader for the test dataset.
+            validation_loader (DataLoader): DataLoader for the validation dataset.
+            num_classes (int): Number of classes in the dataset.
+            model_name (str, optional): Name of the ResNet model to be used. Defaults to 'resnet18'.
+        """
+        if model_name not in supported_models:
+            raise ValueError(f"Unsupported model name: {model_name}")
+
+        model_fn = supported_models[model_name]
+        model_weights = supported_weights[model_name]
+        model = model_fn(weights=model_weights)
+
         in_features = model.fc.in_features
-        # Adjust the output size to num_classes
         model.fc = nn.Linear(in_features, num_classes)
 
-        super().__init__(model, train_loader, test_loader,
-                         validation_loader, layers_to_extract)
+        super().__init__(model, train_loader, test_loader, validation_loader)
 
 
-class ResNet34Trainer(BaseTrainer):
-    def __init__(self, train_loader, test_loader, validation_loader, num_classes):
-        model = models.resnet34(weights=models.ResNet34_Weights.IMAGENET1K_V1)
-        layers_to_extract = ['layer1', 'layer2', 'layer3', 'layer4']
+if __name__ == "__main__":
+    # Example usage of ResNetTrainer.
+    custom_data_loader = CustomDataLoader()
+    train_loader = custom_data_loader.train_loader
+    test_loader = custom_data_loader.test_loader
+    validation_loader = custom_data_loader.validation_loader
 
-        # Replace the last fully connected layer with a new linear layer
-        in_features = model.fc.in_features
-        # Adjust the output size to num_classes
-        model.fc = nn.Linear(in_features, num_classes)
+    num_classes = len(train_loader.dataset.classes)
+    resnet_trainer = ResNetTrainer(
+        train_loader, test_loader, validation_loader, num_classes, model_name='resnet18')
 
-        super().__init__(model, train_loader, test_loader,
-                         validation_loader, layers_to_extract)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    resnet_trainer.set_device(device)
+    resnet_trainer.set_loss_function(torch.nn.CrossEntropyLoss())
 
+    output_folder = 'output'
+    os.makedirs(output_folder, exist_ok=True)
 
-class ResNet50Trainer(BaseTrainer):
-    def __init__(self, train_loader, test_loader, validation_loader, num_classes):
-        model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
-        layers_to_extract = ['layer1', 'layer2', 'layer3', 'layer4']
-
-        # Replace the last fully connected layer with a new linear layer
-        in_features = model.fc.in_features
-        # Adjust the output size to num_classes
-        model.fc = nn.Linear(in_features, num_classes)
-
-        super().__init__(model, train_loader, test_loader,
-                         validation_loader, layers_to_extract)
-
-
-class ResNet101Trainer(BaseTrainer):
-    def __init__(self, train_loader, test_loader, validation_loader, num_classes):
-        model = models.resnet101(
-            weights=models.ResNet101_Weights.IMAGENET1K_V2)
-        layers_to_extract = ['layer1', 'layer2', 'layer3', 'layer4']
-
-        # Replace the last fully connected layer with a new linear layer
-        in_features = model.fc.in_features
-        # Adjust the output size to num_classes
-        model.fc = nn.Linear(in_features, num_classes)
-
-        super().__init__(model, train_loader, test_loader,
-                         validation_loader, layers_to_extract)
-
-
-class ResNet152Trainer(BaseTrainer):
-    def __init__(self, train_loader, test_loader, validation_loader, num_classes):
-        model = models.resnet152(
-            weights=models.ResNet152_Weights.IMAGENET1K_V2)
-        layers_to_extract = ['layer1', 'layer2', 'layer3', 'layer4']
-
-        # Replace the last fully connected layer with a new linear layer
-        in_features = model.fc.in_features
-        # Adjust the output size to num_classes
-        model.fc = nn.Linear(in_features, num_classes)
-
-        super().__init__(model, train_loader, test_loader,
-                         validation_loader, layers_to_extract)
+    resnet_trainer.train(num_epochs=10)

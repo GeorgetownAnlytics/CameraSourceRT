@@ -1,45 +1,57 @@
 import os
-import random
-import logging
-from datetime import datetime
-import matplotlib.pyplot as plt
-from PIL import Image
-from torchvision import transforms
-from torchvision.datasets import ImageFolder
+import json
+import torch
+from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
-from tqdm import tqdm  # Import tqdm for progress bars
-
-# Configure logging
-logging.basicConfig(filename='./logs/training.log', level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s: %(message)s')
+from tqdm import tqdm
 
 
 class CustomDataLoader:
     OUTPUT_FOLDER = "output/image_output"
     IMAGE_SIZE = (224, 224)
-    MEAN = [0.485, 0.456, 0.406]
-    STD_DEV = [0.229, 0.224, 0.225]
+    MEAN_STD_FILE = "mean_std.json"
 
     def __init__(self, base_folder="./datasets/Vision_data", batch_size=256, num_workers=6):
         self.base_folder = base_folder
         self.batch_size = batch_size
         self.num_workers = num_workers
+
+        # Initialize mean and std
+        self.MEAN = [0.485, 0.456, 0.406]  # Default values
+        self.STD_DEV = [0.229, 0.224, 0.225]  # Default values
+
+        # Define transformations using the initialized or loaded mean and std
         self.transform = transforms.Compose([
             transforms.Resize(self.IMAGE_SIZE),
             transforms.ToTensor(),
             transforms.Normalize(mean=self.MEAN, std=self.STD_DEV)
         ])
+        
+        # Create data loaders
         self.train_loader, self.test_loader, self.validation_loader = self.create_data_loaders()
+
+        # Initialize or load mean and std
+        self._initialize_or_load_mean_std()
+
+    def _initialize_or_load_mean_std(self):
+        if os.path.exists(self.MEAN_STD_FILE):
+            with open(self.MEAN_STD_FILE, 'r') as file:
+                mean_std = json.load(file)
+            self.MEAN = mean_std['mean']
+            self.STD_DEV = mean_std['std']
+        else:
+            self.calculate_and_save_mean_std()
 
     def create_data_loaders(self):
         train_folder = os.path.join(self.base_folder, "train")
         test_folder = os.path.join(self.base_folder, "test")
         validation_folder = os.path.join(self.base_folder, "validation")
 
-        train_dataset = ImageFolder(
+        train_dataset = datasets.ImageFolder(
             root=train_folder, transform=self.transform)
-        test_dataset = ImageFolder(root=test_folder, transform=self.transform)
-        validation_dataset = ImageFolder(
+        test_dataset = datasets.ImageFolder(
+            root=test_folder, transform=self.transform)
+        validation_dataset = datasets.ImageFolder(
             root=validation_folder, transform=self.transform)
 
         train_loader = DataLoader(
@@ -51,50 +63,30 @@ class CustomDataLoader:
 
         return train_loader, test_loader, validation_loader
 
-    @staticmethod
-    def select_random_images(dataset, num_images=6):
-        return random.sample(dataset.samples, num_images)
+    def calculate_and_save_mean_std(self):
+        mean = torch.zeros(3)
+        std = torch.zeros(3)
+        num_samples = 0
 
-    @staticmethod
-    def save_images(dataset_name, images):
-        fig, axes = plt.subplots(2, 3, figsize=(16, 10), dpi=300)
-        for i, (image_path, _) in enumerate(images):
-            img = Image.open(image_path)
-            axes[i//3, i % 3].imshow(img)
-            axes[i//3, i % 3].set_title(os.path.basename(image_path),
-                            fontweight='bold', fontname='Times New Roman')
-            axes[i//3, i % 3].axis('off')
-        plt.tight_layout()
+        for images, _ in tqdm(self.train_loader, desc="Calculating Mean and Std"):
+            batch_samples = images.size(0)
+            images = images.view(batch_samples, images.size(1), -1)
+            mean += images.mean(2).sum(0)
+            std += images.std(2).sum(0)
+            num_samples += batch_samples
 
-        # Create the output directory if it doesn't exist
-        os.makedirs(CustomDataLoader.OUTPUT_FOLDER, exist_ok=True)
+        mean /= num_samples
+        std /= num_samples
 
-        output_path = os.path.join(CustomDataLoader.OUTPUT_FOLDER,
-                                   f'{dataset_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
-        plt.savefig(output_path)
-        plt.close()
+        self.MEAN = mean.tolist()
+        self.STD_DEV = std.tolist()
 
-    def process_datasets(self):
-        for dataset_name, loader in zip(["train", "test", "validation"],
-                                        [self.train_loader, self.test_loader,
-                                         self.validation_loader]):
-            # Wrap the loader with tqdm for progress tracking
-            for images, labels in tqdm(loader, desc=f"Processing {dataset_name} Data"):
-                # Placeholder for processing code
-                pass
-
-            selected_images = self.select_random_images(loader.dataset)
-            # Call save_images method to actually save the images
-            self.save_images(dataset_name, selected_images)
-
-            # Log progress
-            for image_path, _ in selected_images:
-                logging.info(
-                    f'Saved {os.path.basename(image_path)} for {dataset_name} dataset')
+        mean_std_dict = {"mean": self.MEAN, "std": self.STD_DEV}
+        with open(self.MEAN_STD_FILE, "w") as file:
+            json.dump(mean_std_dict, file)
 
 
-# Script runs only when executed directly
+# Example usage
 if __name__ == "__main__":
-    # Example usage
     data_loader = CustomDataLoader()
-    data_loader.process_datasets()
+    print("Data loaders have been created.")

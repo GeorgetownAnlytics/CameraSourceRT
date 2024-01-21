@@ -5,35 +5,25 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from torch.optim.lr_scheduler import LambdaLR
 from sklearn.metrics import confusion_matrix
+from tqdm import tqdm
 import torchmetrics
 import pandas as pd
-from tqdm import tqdm
+
 from .dataloader import CustomDataLoader
 
 
 class BaseTrainer:
-    def __init__(self, model, train_loader, test_loader, validation_loader, num_samples=20, loss_function=torch.nn.CrossEntropyLoss()):
+    def __init__(self, model, train_loader, test_loader, validation_loader, num_samples=20):
         self.model = model
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.validation_loader = validation_loader
-        self.loss_function = loss_function
         self.device = torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu')
         self.num_samples = num_samples
-        self.model.to(self.device)
 
         # Initialize metrics for multiclass classification
         num_classes = len(train_loader.dataset.classes)
-        self._initialize_metrics(num_classes)
-        
-        # Initialize class names from train loader if available
-        if hasattr(train_loader.dataset, 'classes'):
-            self.class_names = train_loader.dataset.classes
-        else:
-            self.class_names = [str(i) for i in range(len(train_loader.dataset))]
-
-    def _initialize_metrics(self, num_classes):
         self.train_accuracy = torchmetrics.Accuracy(
             task="multiclass", num_classes=num_classes).to(self.device)
         self.validation_accuracy = torchmetrics.Accuracy(
@@ -54,7 +44,7 @@ class BaseTrainer:
     def set_loss_function(self, loss_function):
         self.loss_function = loss_function
 
-    def train(self, num_epochs=5, warmup_epochs=1):
+    def train_and_evaluate(self, num_epochs=10, output_folder=None, warmup_epochs=2):
         if num_epochs <= warmup_epochs:
             raise ValueError("num_epochs must be greater than warmup_epochs.")
         self.model.train()
@@ -63,12 +53,15 @@ class BaseTrainer:
         scheduler = LambdaLR(optimizer, lr_lambda=self._warmup_cosine_annealing(
             0.001, warmup_epochs, num_epochs))
 
-        total_batches = len(self.train_loader)
+        # Data structure to store metrics
         metrics_history = {
             'Epoch': [],
             'Train Loss': [],
             'Train Accuracy': [],
             'Train F1': [],
+            'Test Loss': [],
+            'Test Accuracy': [],
+            'Test F1': [],
             'Validation Loss': [],
             'Validation Accuracy': [],
             'Validation F1': []
@@ -79,10 +72,8 @@ class BaseTrainer:
             running_loss = 0.0
             self.train_accuracy.reset()
             self.train_f1.reset()
-            train_progress_bar = tqdm(
-                total=total_batches, desc=f"Training - Epoch {epoch + 1}/{num_epochs}")
 
-            for batch_idx, (inputs, labels) in enumerate(self.train_loader):
+            for inputs, labels in tqdm(self.train_loader, desc=f"Training - Epoch {epoch + 1}/{num_epochs}"):
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
@@ -94,35 +85,54 @@ class BaseTrainer:
                 _, predicted = torch.max(outputs.data, 1)
                 self.train_accuracy.update(predicted, labels)
                 self.train_f1.update(predicted, labels)
-                train_progress_bar.update(1)
 
-            avg_loss = running_loss / total_batches
-            train_accuracy = self.train_accuracy.compute()
-            train_f1_score = self.train_f1.compute()
+                # Calculate average loss, accuracy, and F1 score for the epoch
+                avg_loss = running_loss / len(self.train_loader)
+                accuracy = self.train_accuracy.compute()
+                f1_score = self.train_f1.compute()
 
-            metrics_history['Epoch'].append(epoch + 1)
-            metrics_history['Train Loss'].append(avg_loss)
-            metrics_history['Train Accuracy'].append(train_accuracy)
-            metrics_history['Train F1'].append(train_f1_score)
+                # Append training metrics to history
+                metrics_history['Epoch'].append(epoch + 1)
+                metrics_history['Train Loss'].append(avg_loss)
+                metrics_history['Train Accuracy'].append(accuracy)
+                metrics_history['Train F1'].append(f1_score)
 
-            val_loss, val_accuracy, val_f1 = self._evaluate_loss_accuracy(
-                self.validation_loader, self.validation_accuracy, self.validation_f1)
-            metrics_history['Validation Loss'].append(val_loss)
-            metrics_history['Validation Accuracy'].append(val_accuracy)
-            metrics_history['Validation F1'].append(val_f1)
+                # Evaluate on test set
+                test_loss, test_accuracy, test_f1 = self._evaluate_loss_accuracy(
+                    self.test_loader, self.test_accuracy, self.test_f1)
+                metrics_history['Test Loss'].append(test_loss)
+                metrics_history['Test Accuracy'].append(test_accuracy)
+                metrics_history['Test F1'].append(test_f1)
 
-            print(f"Epoch {epoch + 1}/{num_epochs} Completed: Train Loss: {avg_loss},\
-                Train Accuracy: {train_accuracy}, Train F1: {train_f1_score}, Validation Loss: {val_loss},\
-                    Validation Accuracy: {val_accuracy}, Validation F1: {val_f1}")
-            scheduler.step()
+                # Evaluate on validation set
+                val_loss, val_accuracy, val_f1 = self._evaluate_loss_accuracy(
+                    self.validation_loader, self.validation_accuracy, self.validation_f1)
+                metrics_history['Validation Loss'].append(val_loss)
+                metrics_history['Validation Accuracy'].append(val_accuracy)
+                metrics_history['Validation F1'].append(val_f1)
 
-        train_progress_bar.close()
+                print(f"Completed epoch {epoch + 1}/{num_epochs}")
+                scheduler.step()
 
-        # Evaluate on test set after training
-        test_loss, test_accuracy, test_f1 = self._evaluate_loss_accuracy(
-            self.test_loader, self.test_accuracy, self.test_f1)
-        print(
-            f"Test - After Training: Loss: {test_loss}, Accuracy: {test_accuracy}, F1 Score: {test_f1}")
+            # Save metrics to a DataFrame and CSV
+            metrics_df = pd.DataFrame({
+                'Epoch': metrics_history['Epoch'],
+                'Train Loss': metrics_history['Train Loss'],
+                'Train Accuracy': [acc.item() for acc in metrics_history['Train Accuracy']],
+                'Train F1': [f1.item() for f1 in metrics_history['Train F1']],
+                'Test Loss': metrics_history['Test Loss'],
+                'Test Accuracy': [acc.item() for acc in metrics_history['Test Accuracy']],
+                'Test F1': [f1.item() for f1 in metrics_history['Test F1']],
+                'Validation Loss': metrics_history['Validation Loss'],
+                'Validation Accuracy': [acc.item() for acc in metrics_history['Validation Accuracy']],
+                'Validation F1': [f1.item() for f1 in metrics_history['Validation F1']]
+            })
+
+            metrics_df.to_csv(os.path.join(
+                output_folder, 'training_metrics.csv'), index=False)
+
+            # Plotting metrics
+            self._plot_metrics(metrics_history, output_folder)
 
         return metrics_history
 
@@ -168,20 +178,6 @@ class BaseTrainer:
                 all_labels.extend(labels.cpu().numpy())
 
         return confusion_matrix(all_labels, all_preds)
-    
-    def save_confusion_matrix_csv(self, confusion_matrix, phase, output_folder):
-        """
-        Saves the confusion matrix to a CSV file.
-
-        Args:
-            confusion_matrix (numpy.ndarray): The confusion matrix to be saved.
-            phase (str): The phase during which the confusion matrix was generated (e.g., 'train', 'test', 'validation').
-            output_folder (str): The directory where the CSV file will be saved.
-        """
-        cm_df = pd.DataFrame(confusion_matrix, index=self.class_names, columns=self.class_names)
-        cm_csv_filename = os.path.join(output_folder, f'{phase}_confusion_matrix.csv')
-        cm_df.to_csv(cm_csv_filename, index_label='True Label', header='Predicted Label')
-        print(f"Confusion matrix saved as CSV in {cm_csv_filename}")
 
     def _plot_and_save_confusion_matrix(self, cm, phase, output_folder, class_names):
         plt.figure(figsize=(16, 16))
@@ -191,9 +187,10 @@ class BaseTrainer:
         plt.ylabel('True label')
         plt.xlabel('Predicted label')
         plt.tight_layout()
-        cm_filename = os.path.join(
-            output_folder, f'{phase}_confusion_matrix_{self.model.__class__.__name__}.pdf')
+        cm_filename = os.path.join(output_folder,
+                                   f'{phase}_confusion_matrix_{self.model.__class__.__name__}.pdf')
         plt.savefig(cm_filename, format='pdf', bbox_inches='tight')
+        # Save the confusion matrix as a CSV file
         cm_df = pd.DataFrame(cm, index=class_names, columns=class_names)
         cm_csv_filename = os.path.join(
             output_folder, f'{phase}_confusion_matrix.csv')
@@ -204,17 +201,26 @@ class BaseTrainer:
     def _plot_metrics(self, metrics_history, output_folder):
         plt.figure(figsize=(16, 10))
         epochs = range(1, len(metrics_history['Epoch']) + 1)
-        plt.plot(epochs, metrics_history['Train Loss'], label='Training Loss')
-        plt.plot(
-            epochs, metrics_history['Train Accuracy'], label='Training Accuracy')
-        plt.plot(
-            epochs, metrics_history['Train F1'], label='Training F1 Score')
-        plt.plot(
-            epochs, metrics_history['Validation Loss'], label='Validation Loss')
-        plt.plot(
-            epochs, metrics_history['Validation Accuracy'], label='Validation Accuracy')
-        plt.plot(
-            epochs, metrics_history['Validation F1'], label='Validation F1 Score')
+
+        plt.plot(epochs, metrics_history['Train Loss'],
+                 label='Training Loss')
+        plt.plot(epochs, metrics_history['Test Loss'],
+                 label='Test Loss')
+        plt.plot(epochs, metrics_history['Validation Loss'],
+                 label='Validation Loss')
+        plt.plot(epochs, metrics_history['Train Accuracy'],
+                 label='Training Accuracy')
+        plt.plot(epochs, metrics_history['Test Accuracy'],
+                 label='Test Accuracy')
+        plt.plot(epochs, metrics_history['Validation Accuracy'],
+                 label='Validation Accuracy')
+        plt.plot(epochs, metrics_history['Train F1'],
+                 label='Training F1 Score')
+        plt.plot(epochs, metrics_history['Test F1'],
+                 label='Test F1 Score')
+        plt.plot(epochs, metrics_history['Validation F1'],
+                 label='Validation F1 Score')
+
         plt.title('Metrics Over Epochs')
         plt.xlabel('Epochs')
         plt.ylabel('Metrics')
@@ -227,16 +233,17 @@ class BaseTrainer:
 
 if __name__ == "__main__":
     # Initialize data loaders
+    # Note: Replace 'YourDataLoader' with your actual data loader class or function
     custom_data_loader = CustomDataLoader()
     train_loader, test_loader, validation_loader = custom_data_loader.train_loader, custom_data_loader.test_loader, custom_data_loader.validation_loader
+
 
     # Initialize the model
     # Note: Replace 'YourModel' with your actual model class
     model = BaseTrainer()
 
     # Create an instance of the BaseTrainer
-    trainer = BaseTrainer(model=model, train_loader=train_loader,
-                          test_loader=test_loader, validation_loader=validation_loader)
+    trainer = BaseTrainer(model, train_loader, test_loader, validation_loader)
 
     # Set device and loss function for the trainer
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -248,18 +255,18 @@ if __name__ == "__main__":
     os.makedirs(output_folder, exist_ok=True)
 
     # Start training and evaluation
-    trainer.train(num_epochs=10)
+    trainer.train_and_evaluate(num_epochs=10, output_folder=output_folder)
 
     # Optionally, you can generate and plot confusion matrices
     class_names = train_loader.dataset.classes  # Or however you obtain class names
     train_cm = trainer._calculate_confusion_matrix(train_loader)
-    trainer._plot_and_save_confusion_matrix(train_cm, 'train',
+    trainer._plot_and_save_confusion_matrix(train_cm, 'train', 
                                             output_folder, class_names)
-
+    
     test_cm = trainer._calculate_confusion_matrix(test_loader)
-    trainer._plot_and_save_confusion_matrix(test_cm, 'test',
+    trainer._plot_and_save_confusion_matrix(test_cm, 'test', 
                                             output_folder, class_names)
-
+    
     validation_cm = trainer._calculate_confusion_matrix(validation_loader)
     trainer._plot_and_save_confusion_matrix(validation_cm, 'validation',
                                             output_folder, class_names)

@@ -136,6 +136,9 @@ datasets/Vision_data/validation/*
 datasets/Vision_data_original/test/*
 datasets/Vision_data_original/train/*
 datasets/Vision_data_original/validation/*
+datasets/Vision_data_padded/test/*
+datasets/Vision_data_padded/train/*
+datasets/Vision_data_padded/validation/*
 output/data_characteristics/*.pdf
 output/image_output
 output/*.pth
