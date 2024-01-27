@@ -1,9 +1,4 @@
 {
-    "seed": 42,
-    "num_epochs": 2,
-    "batch_size": 256,
-    "num_workers": 0,
-    "device": "cpu",
-    "loss_function": "crossentropy",
-    "model_names": ["resnet18"]
+    "model_name": "resnet34",
+    "run_all_model_names": ["resnet18", "resnet34", "resnet50", "resnet101", "resnet152"]
 }

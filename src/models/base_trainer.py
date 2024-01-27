@@ -8,7 +8,6 @@ import seaborn as sns
 from torch.optim.lr_scheduler import LambdaLR
 from sklearn.metrics import confusion_matrix, roc_curve, auc
 import torchmetrics
-import joblib
 from tqdm import tqdm
 from sklearn.preprocessing import label_binarize
 from itertools import cycle
@@ -28,7 +27,7 @@ class BaseTrainer:
         validation_loader,
         num_samples=20,
         loss_function=torch.nn.CrossEntropyLoss(),
-        output_folder="output",
+        output_folder=paths.OUTPUTS_DIR,
     ):
         self.model = model
         self.output_folder = output_folder
@@ -93,7 +92,7 @@ class BaseTrainer:
     def set_loss_function(self, loss_function):
         self.loss_function = loss_function
 
-    def train(self, num_epochs=40):
+    def train(self, num_epochs=40, checkpoint_dir_path=paths.CHECKPOINTS_DIR):
         # Ensure at least 1 warmup epoch
         warmup_epochs = max(1, num_epochs // 5)
         self.model.train()
@@ -169,7 +168,7 @@ class BaseTrainer:
             # Checkpointing
             if val_accuracy > best_val_accuracy:
                 best_val_accuracy = val_accuracy
-                self._save_checkpoint(epoch, self.output_folder)
+                self._save_checkpoint(epoch, checkpoint_dir_path)
 
             metrics_history["Validation Loss"].append(val_loss)
             metrics_history["Validation Accuracy"].append(val_accuracy)
@@ -262,15 +261,16 @@ class BaseTrainer:
 
         return confusion_matrix(all_labels, all_preds)
 
-    def save_confusion_matrix_csv(self, confusion_matrix, phase, output_folder):
+    def save_confusion_matrix_csv(self, loader, phase, output_folder):
         """
         Saves the confusion matrix to a CSV file.
 
         Args:
-            confusion_matrix (numpy.ndarray): The confusion matrix to be saved.
+            loader (torch.utils.data.dataloader.DataLoader): The data loader with data used to make predictions.
             phase (str): The phase during which the confusion matrix was generated (e.g., 'train', 'test', 'validation').
             output_folder (str): The directory where the CSV file will be saved.
         """
+        confusion_matrix = self._calculate_confusion_matrix(loader)
         cm_df = pd.DataFrame(
             confusion_matrix, index=self.class_names, columns=self.class_names
         )
@@ -279,6 +279,7 @@ class BaseTrainer:
             cm_csv_filename, index_label="True Label", header="Predicted Label"
         )
         print(f"Confusion matrix saved as CSV in {cm_csv_filename}")
+        return confusion_matrix
 
     def _plot_and_save_confusion_matrix(self, cm, phase, output_folder, class_names):
         plt.figure(figsize=(16, 16))
@@ -306,7 +307,7 @@ class BaseTrainer:
         )
         plt.close()
 
-    def _save_metrics_to_csv(self, metrics_history, file_name):
+    def _save_metrics_to_csv(self, metrics_history, output_folder, file_name):
         # Convert all tensor values in metrics_history to CPU and then to NumPy
         for key in metrics_history:
             metrics_history[key] = [
@@ -315,7 +316,7 @@ class BaseTrainer:
             ]
 
         metrics_df = pd.DataFrame(metrics_history)
-        metrics_csv_path = os.path.join(self.output_folder, file_name)
+        metrics_csv_path = os.path.join(output_folder, file_name)
         metrics_df.to_csv(metrics_csv_path, index=False)
 
     def _plot_metrics(self, metrics_history, output_folder):

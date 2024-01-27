@@ -47,7 +47,7 @@ class ResNetTrainer(BaseTrainer):
         validation_loader,
         num_classes,
         model_name="resnet18",
-        output_folder=None,
+        output_folder=paths.OUTPUTS_DIR,
     ):
         """
         Initializes the ResNetTrainer with the specified model, data loaders, and number of classes.
@@ -70,9 +70,6 @@ class ResNetTrainer(BaseTrainer):
         self.model_name = model_name
         self.output_folder = output_folder
 
-        if output_folder is None:
-            output_folder = os.path.join(paths.OUTPUTS_DIR, model_name)
-
         model_fn = supported_models[model_name]
         model_weights = supported_weights[model_name]
         model = model_fn(weights=model_weights)
@@ -89,16 +86,39 @@ class ResNetTrainer(BaseTrainer):
         )
 
     def save_model(self, predictor_path=paths.PREDICTOR_DIR):
-        path = os.path.join(predictor_path, self.model_name)
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        joblib.dump(self, os.path.join(path, "predictor.joblib"))
+        model_params = {
+            "train_loader": self.train_loader,
+            "test_loader": self.test_loader,
+            "validation_loader": self.validation_loader,
+            "num_classes": self.num_classes,
+            "model_name": self.model_name,
+            "output_folder": self.output_folder,
+        }
+        params_path = os.path.join(predictor_path, "model_params.joblib")
+        model_path = os.path.join(predictor_path, "model_state.pth")
+        joblib.dump(model_params, params_path)
+        torch.save(self.model.state_dict(), model_path)
 
     @staticmethod
-    def load_model(model_name, predictor_path=paths.PREDICTOR_DIR):
-        path = os.path.join(predictor_path, model_name)
-        return joblib.load(os.path.join(path, "predictor.joblib"))
+    def load_model(predictor_path=paths.PREDICTOR_DIR):
+        params_path = os.path.join(predictor_path, "model_params.joblib")
+        model_path = os.path.join(predictor_path, "model_state.pth")
+        params = joblib.load(params_path)
+        model_state = torch.load(model_path)
+
+        model_name = params["model_name"]
+        num_classes = params["num_classes"]
+        model_fn = supported_models[model_name]
+        model_weights = supported_weights[model_name]
+        model = model_fn(weights=model_weights)
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, num_classes)
+
+        model.load_state_dict(model_state)
+
+        trainer = ResNetTrainer(**params)
+        trainer.model = model
+        return trainer
 
 
 if __name__ == "__main__":

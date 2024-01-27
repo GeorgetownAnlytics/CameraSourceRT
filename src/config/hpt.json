@@ -1,0 +1,31 @@
+{
+    "default_hyperparameters": {
+        "seed": 42,
+        "num_epochs": 2,
+        "batch_size": 256,
+        "num_workers": 0,
+        "device": "cpu",
+        "loss_function": "crossentropy"
+    },
+    "hyperparameter_tuning": {
+
+        "resnet18": [
+            {
+                "name": "num_epochs",
+                "short_desc": "The number of training epochs.",
+                "type": "int",
+                "search_type": "uniform",
+                "range_low": 5,
+                "range_high": 10
+            },
+            {
+                "name": "batch_size",
+                "short_desc": "The number of samples per batch",
+                "type": "int",
+                "search_type": "uniform",
+                "range_low": 32,
+                "range_high": 512
+            }
+        ]
+    }
+}
