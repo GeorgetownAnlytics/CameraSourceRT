@@ -61,8 +61,10 @@ if __name__ == "__main__":
             num_epochs=num_epochs, checkpoint_dir_path=checkpoint_dir_path
         )
 
+        predictor_path = os.path.join(model_output_folder, "predictor")
+
         print("Saving model...")
-        trainer.save_model()
+        trainer.save_model(predictor_path=predictor_path)
 
         print("Saving metrics to csv...")
         trainer._save_metrics_to_csv(

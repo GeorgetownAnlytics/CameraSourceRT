@@ -86,6 +86,7 @@ class ResNetTrainer(BaseTrainer):
         )
 
     def save_model(self, predictor_path=paths.PREDICTOR_DIR):
+        os.makedirs(predictor_path, exist_ok=True)
         model_params = {
             "train_loader": self.train_loader,
             "test_loader": self.test_loader,
