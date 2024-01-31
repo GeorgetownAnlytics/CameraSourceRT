@@ -4,6 +4,7 @@ import random
 import torch
 import numpy as np
 from typing import Dict
+from config import paths
 
 
 def read_json_as_dict(input_path: str) -> Dict:
@@ -70,3 +71,31 @@ def set_seeds(seed_value: int) -> None:
         torch.cuda.manual_seed_all(seed_value)
     else:
         raise ValueError(f"Invalid seed value: {seed_value}. Cannot set seeds.")
+
+
+def get_model_parameters(
+    model_name: str,
+    hyperparameters_file_path: str = paths.HYPERPARAMETERS_FILE,
+    hyperparameter_tuning: bool = False,
+) -> dict:
+    """
+    Read hyperparameters from hyperparameters file.
+
+    Args:
+        model_name (str): Name of the model for which hyperparameters are read.
+        hyperparameters_file_path (str): File path for hyperparameters.
+        hyperparameter_tuning (bool): Whether hyperparameter tuning is used or not.
+
+
+    """
+    hyperparameters_dict = read_json_as_dict(hyperparameters_file_path)
+    model_parameters = hyperparameters_dict[model_name]
+
+    if not hyperparameter_tuning:
+        hyperparameters = {i["name"]: i["default"] for i in model_parameters}
+
+    else:
+        # TODO: Read hyperparameters in case of tuning.
+        pass
+
+    return hyperparameters

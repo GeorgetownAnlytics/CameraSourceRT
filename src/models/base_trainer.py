@@ -13,7 +13,7 @@ from sklearn.preprocessing import label_binarize
 from itertools import cycle
 from .dataloader import CustomDataLoader
 
-from src.config import paths
+from config import paths
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -88,6 +88,7 @@ class BaseTrainer:
     def set_device(self, device):
         self.device = torch.device(device)
         self.model.to(self.device)
+        print(f"Device set to {device}")
 
     def set_loss_function(self, loss_function):
         self.loss_function = loss_function

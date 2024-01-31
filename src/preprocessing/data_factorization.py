@@ -13,8 +13,12 @@ random.seed(config_dict["seed"])
 
 # Specify the paths to the source and destination directories
 src_data_dir = paths.RAW_DATA_DIR
-dest_data_dir = paths.VISION_DATA_DIR
-split_dir = paths.SPLIT_DATA_DIR
+dest_data_dir = paths.INPUTS_DIR
+split_dir = paths.DATA_SPLIT_DIR
+
+# train_dir = paths.TRAIN_DIR
+# test_dir = paths.TEST_DIR
+# validation_dir = paths.VALIDATION_DIR
 
 Path(split_dir).mkdir(parents=True, exist_ok=True)
 

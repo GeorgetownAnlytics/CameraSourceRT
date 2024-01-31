@@ -4,24 +4,27 @@ from models.dataloader import CustomDataLoader
 from models.resnet_trainer import ResNetTrainer
 import pandas as pd
 
-from utils import read_json_as_dict
+from utils import read_json_as_dict, set_seeds
 from config import paths
 
 if __name__ == "__main__":
-    params = read_json_as_dict(paths.HPT_FILE)["default_hyperparameters"]
     config = read_json_as_dict(paths.CONFIG_FILE)
-    num_epochs = params.get("num_epochs")
-    device = params.get("device")
-    loss_choice = params.get("loss_function")
-    num_workers = params.get("num_workers")
-    batch_size = params.get("batch_size")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    num_epochs = config.get("num_epochs")
+    loss_choice = config.get("loss_function")
+    num_workers = config.get("num_workers")
+    batch_size = config.get("run_all_batch_size")
     loss_function = (
         torch.nn.CrossEntropyLoss()
         if loss_choice == "crossentropy"
         else torch.nn.MultiMarginLoss()
     )
+    print("Setting seeds to:", config["seed"])
+    set_seeds(config["seed"])
 
-    output_folder = paths.RUN_ALL_DIR
+    predictions_folder = paths.RUN_ALL_PREDICTIONS_DIR
+    artifacts_folder = paths.RUN_ALL_ARTIFACTS_DIR
     model_names = config.get("run_all_model_names")
 
     custom_data_loader = CustomDataLoader(
@@ -31,8 +34,10 @@ if __name__ == "__main__":
     for model_name in model_names:
         print(f"\nWorking on model: {model_name}")
 
-        model_output_folder = os.path.join(output_folder, model_name)
-        os.makedirs(model_output_folder, exist_ok=True)
+        model_predictions_folder = os.path.join(predictions_folder, model_name)
+        model_artifacts_folder = os.path.join(artifacts_folder, model_name)
+        os.makedirs(model_artifacts_folder, exist_ok=True)
+        os.makedirs(model_predictions_folder, exist_ok=True)
 
         train_loader, test_loader, validation_loader = (
             custom_data_loader.train_loader,
@@ -48,12 +53,12 @@ if __name__ == "__main__":
             validation_loader,
             num_classes,
             model_name,
-            model_output_folder,
+            model_artifacts_folder,
         )
         trainer.set_device(device)
         trainer.set_loss_function(loss_function)
 
-        checkpoint_dir_path = os.path.join(model_output_folder, "checkpoints")
+        checkpoint_dir_path = os.path.join(model_artifacts_folder, "checkpoints")
         os.makedirs(checkpoint_dir_path, exist_ok=True)
 
         print("Training model...")
@@ -61,7 +66,7 @@ if __name__ == "__main__":
             num_epochs=num_epochs, checkpoint_dir_path=checkpoint_dir_path
         )
 
-        predictor_path = os.path.join(model_output_folder, "predictor")
+        predictor_path = os.path.join(model_artifacts_folder, "predictor")
 
         print("Saving model...")
         trainer.save_model(predictor_path=predictor_path)
@@ -69,7 +74,7 @@ if __name__ == "__main__":
         print("Saving metrics to csv...")
         trainer._save_metrics_to_csv(
             metrics_history,
-            output_folder=model_output_folder,
+            output_folder=model_artifacts_folder,
             file_name="train_validation_metrics.csv",
         )
 
@@ -80,14 +85,14 @@ if __name__ == "__main__":
         trainer._plot_and_save_confusion_matrix(
             cm=train_cm,
             phase="train",
-            output_folder=model_output_folder,
+            output_folder=model_artifacts_folder,
             class_names=trainer.train_loader.dataset.classes,
         )
 
         trainer._plot_and_save_confusion_matrix(
             cm=validation_cm,
             phase="validation",
-            output_folder=model_output_folder,
+            output_folder=model_artifacts_folder,
             class_names=trainer.train_loader.dataset.classes,
         )
 
@@ -105,7 +110,7 @@ if __name__ == "__main__":
         print("Saving test metrics to csv...")
         trainer._save_metrics_to_csv(
             test_metrics,
-            output_folder=model_output_folder,
+            output_folder=model_predictions_folder,
             file_name="test_metrics.csv",
         )
 
@@ -114,7 +119,7 @@ if __name__ == "__main__":
         trainer._plot_and_save_confusion_matrix(
             cm=test_cm,
             phase="test",
-            output_folder=model_output_folder,
+            output_folder=model_predictions_folder,
             class_names=trainer.train_loader.dataset.classes,
         )
 

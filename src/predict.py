@@ -20,7 +20,7 @@ if __name__ == "__main__":
     )
     print("Saving metrics to csv...")
     trainer._save_metrics_to_csv(
-        test_metrics, output_folder=paths.OUTPUTS_DIR, file_name="test_metrics.csv"
+        test_metrics, output_folder=paths.PREDICTIONS_DIR, file_name="test_metrics.csv"
     )
 
     print("Saving confusion matrix...")
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     trainer._plot_and_save_confusion_matrix(
         cm=test_cm,
         phase="test",
-        output_folder=paths.OUTPUTS_DIR,
+        output_folder=paths.PREDICTIONS_DIR,
         class_names=trainer.train_loader.dataset.classes,
     )
 

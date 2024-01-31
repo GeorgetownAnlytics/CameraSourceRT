@@ -8,7 +8,7 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # Import tqdm for progress bars
-from src.config import paths
+from config import paths
 
 # Configure logging
 logging.basicConfig(
@@ -24,9 +24,7 @@ class CustomDataLoader:
     MEAN = [0.485, 0.456, 0.406]
     STD_DEV = [0.229, 0.224, 0.225]
 
-    def __init__(
-        self, base_folder=paths.VISION_DATA_DIR, batch_size=256, num_workers=6
-    ):
+    def __init__(self, base_folder=paths.INPUTS_DIR, batch_size=256, num_workers=6):
         self.base_folder = base_folder
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -42,8 +40,6 @@ class CustomDataLoader:
             self.test_loader,
             self.validation_loader,
         ) = self.create_data_loaders()
-
-    
 
     def create_data_loaders(self):
         train_folder = os.path.join(self.base_folder, "train")
@@ -64,7 +60,7 @@ class CustomDataLoader:
             shuffle=True,
             num_workers=self.num_workers,
         )
-        
+
         test_loader = DataLoader(
             test_dataset,
             batch_size=self.batch_size,

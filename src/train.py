@@ -2,29 +2,35 @@ import torch
 from models.dataloader import CustomDataLoader
 from models.resnet_trainer import ResNetTrainer
 
-from utils import read_json_as_dict, set_seeds
+from utils import read_json_as_dict, set_seeds, get_model_parameters
 from config import paths
 
 
 def main():
-    params = read_json_as_dict(paths.HPT_FILE)["default_hyperparameters"]
     config = read_json_as_dict(paths.CONFIG_FILE)
-    num_epochs = params.get("num_epochs")
-    device = params.get("device")
-    loss_choice = params.get("loss_function")
-    num_workers = params.get("num_workers")
+
+    model_name = config.get("model_name")
+    params = get_model_parameters(
+        model_name=model_name,
+        hyperparameters_file_path=paths.HYPERPARAMETERS_FILE,
+        hyperparameter_tuning=config["hyperparameter_tuning"],
+    )
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    num_epochs = config.get("num_epochs")
+    loss_choice = config.get("loss_function")
+    num_workers = config.get("num_workers")
     batch_size = params.get("batch_size")
     loss_function = (
         torch.nn.CrossEntropyLoss()
         if loss_choice == "crossentropy"
         else torch.nn.MultiMarginLoss()
     )
-    print("Setting seeds to:", params["seed"])
-    set_seeds(params["seed"])
-    model_name = config.get("model_name")
+    print("Setting seeds to:", config["seed"])
+    set_seeds(config["seed"])
 
     custom_data_loader = CustomDataLoader(
-        batch_size=batch_size, num_workers=num_workers
+        base_folder=paths.INPUTS_DIR, batch_size=batch_size, num_workers=num_workers
     )
 
     print(f"\nWorking on model: {model_name}")
