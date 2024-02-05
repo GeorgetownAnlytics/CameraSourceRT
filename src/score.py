@@ -1,15 +1,15 @@
 import os
 import torch
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
-from typing import Dict, List, Union, Tuple
+import matplotlib.pyplot as plt
+from itertools import cycle
+from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import label_binarize
-from itertools import cycle
-from torchmetrics.classification.accuracy import MulticlassAccuracy
-from torchmetrics.classification.f_beta import MulticlassF1Score
+from typing import Dict, List, Union, Tuple
+from torchmetrics import Accuracy, Recall, Precision, F1Score
 from torch.nn.modules.loss import CrossEntropyLoss, MultiMarginLoss
 
 
@@ -161,14 +161,16 @@ def plot_metrics(metrics_history, output_folder):
     plt.close()
 
 
-def evaluate_loss_accuracy_f1(
+def evaluate_metrics(
     labels: np.ndarray,
     predictions: np.ndarray,
     logits: np.ndarray,
     loss_function: Union[CrossEntropyLoss, MultiMarginLoss],
-    accuracy_metric: MulticlassAccuracy,
-    f1_metric: MulticlassF1Score,
-) -> Tuple[float, float, float]:
+    accuracy_metric: Accuracy,
+    f1_metric: F1Score,
+    recall_metric: Recall,
+    precision_metric: Precision,
+) -> Tuple[float, float, float, float, float]:
     """
     Evaluates loss, accuracy and f1-score on given labels and predictions.
 
@@ -176,13 +178,18 @@ def evaluate_loss_accuracy_f1(
         labels (np.ndarray): True labels.
         predictions (np.ndarray): Predicted labels.
         loss_function (Union[CrossEntropyLoss, MultiMarginLoss]): The loss function.
-        accuracy_metric (MulticlassAccuracy): torchmetrics MulticlassAccuracy object.
-        f1_metric (MulticlassF1Score): torchmetrics MulticlassF1Score object.
+        accuracy_metric (Accuracy): torchmetrics Accuracy object.
+        f1_metric (F1Score): torchmetrics F1Score object.
+        recall_metric (Recall): torchmetrics Recall object.
+        precision_metric (Precision): torchmetrics Precision object.
 
-    Returns (Tuple[float, float, float]): (loss, accuracy, f1-score)
+
+    Returns (Tuple[float, float, float, float, float]): (loss, accuracy, f1-score, recall, precision)
     """
     accuracy_metric.reset()
     f1_metric.reset()
+    recall_metric.reset()
+    precision_metric.reset()
 
     labels = torch.from_numpy(labels).long()
     predictions = torch.from_numpy(predictions)
@@ -191,7 +198,113 @@ def evaluate_loss_accuracy_f1(
 
     accuracy_metric.update(predictions, labels)
     f1_metric.update(predictions, labels)
+    precision_metric.update(predictions, labels)
+    recall_metric.update(predictions, labels)
 
     accuracy = accuracy_metric.compute().item()
     f1_score = f1_metric.compute().item()
-    return loss, accuracy, f1_score
+    recall = recall_metric.compute().item()
+    precision = precision_metric.compute().item()
+    return loss, accuracy, f1_score, recall, precision
+
+
+def plot_extended_metrics(
+    metrics_df, output_folder, model, loader, class_names, device
+):
+    # Ensure output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Plot for Precision and Recall (assuming these columns are in metrics_df)
+    plt.figure(figsize=(10, 5))
+    plt.plot(
+        metrics_df["Epoch"], metrics_df["Train Precision"], label="Train Precision"
+    )
+    plt.plot(metrics_df["Epoch"], metrics_df["Train Recall"], label="Train Recall")
+    plt.plot(
+        metrics_df["Epoch"],
+        metrics_df["Validation Precision"],
+        label="Validation Precision",
+    )
+    plt.plot(
+        metrics_df["Epoch"],
+        metrics_df["Validation Recall"],
+        label="Validation Recall",
+    )
+    plt.title("Precision and Recall over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Value")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(output_folder, "precision_recall_plot.pdf"))
+    plt.close()
+
+    # Plot for Top-5 Accuracy
+    plt.figure(figsize=(10, 5))
+    plt.plot(
+        metrics_df["Epoch"],
+        metrics_df["Train Top-5 Accuracy"],
+        label="Train Top-5 Accuracy",
+    )
+    plt.plot(
+        metrics_df["Epoch"],
+        metrics_df["Validation Top-5 Accuracy"],
+        label="Validation Top-5 Accuracy",
+    )
+    plt.title("Top-5 Accuracy over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(output_folder, "top5_accuracy_plot.pdf"))
+    plt.close()
+
+    # Multiclass ROC
+    model.eval()
+    y_true = []
+    y_scores = []
+
+    # Binarize the output labels for all classes
+    num_classes = len(class_names)
+    with torch.no_grad():
+        for inputs, labels in loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+
+            y_true.extend(labels.cpu().numpy())
+            y_scores.extend(outputs.cpu().numpy())
+
+    y_true = label_binarize(y_true, classes=range(num_classes))
+    y_scores = np.array(y_scores)
+
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+
+    for i in range(num_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_true[:, i], y_scores[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+
+    # Plot all ROC curves
+    plt.figure(figsize=(10, 8))
+    colors = cycle(["blue", "red", "green", "cyan", "magenta", "yellow", "black"])
+    for i, color in zip(range(num_classes), colors):
+        plt.plot(
+            fpr[i],
+            tpr[i],
+            color=color,
+            lw=2,
+            label="ROC curve of class {0} (area = {1:0.2f})"
+            "".format(class_names[i], roc_auc[i]),
+        )
+
+    plt.plot([0, 1], [0, 1], "k--", lw=2)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Multiclass ROC")
+    plt.legend(loc="lower right")
+    plt.savefig(os.path.join(output_folder, "multiclass_roc_curve.pdf"))
+    plt.close()

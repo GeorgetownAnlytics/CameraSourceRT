@@ -68,8 +68,8 @@ def main():
     )
 
     print("Predicting train and validation labels...")
-    train_labels, train_pred = trainer.predict(train_loader)
-    validiation_labels, validation_pred = trainer.predict(validation_loader)
+    train_labels, train_pred, _ = trainer.predict(train_loader)
+    validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
 
     print("Saving confusion matrix...")
     train_cm = calculate_confusion_matrix(

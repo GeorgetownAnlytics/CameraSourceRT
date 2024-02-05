@@ -1,11 +1,17 @@
 import os
 import torch
+import pandas as pd
+from config import paths
 from models.dataloader import CustomDataLoader
 from models.resnet_trainer import ResNetTrainer
-import pandas as pd
-
 from utils import read_json_as_dict, set_seeds
-from config import paths
+from score import (
+    calculate_confusion_matrix,
+    evaluate_metrics,
+    plot_and_save_confusion_matrix,
+    save_metrics_to_csv,
+)
+
 
 if __name__ == "__main__":
     config = read_json_as_dict(paths.CONFIG_FILE)
@@ -72,32 +78,53 @@ if __name__ == "__main__":
         trainer.save_model(predictor_path=predictor_path)
 
         print("Saving metrics to csv...")
-        trainer._save_metrics_to_csv(
+        save_metrics_to_csv(
             metrics_history,
             output_folder=model_artifacts_folder,
             file_name="train_validation_metrics.csv",
         )
 
-        print("Saving confusion matrix...")
-        train_cm = trainer._calculate_confusion_matrix(train_loader)
-        validation_cm = trainer._calculate_confusion_matrix(validation_loader)
+        print("Predicting train and validation labels...")
+        train_labels, train_pred, _ = trainer.predict(train_loader)
+        validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
 
-        trainer._plot_and_save_confusion_matrix(
+        print("Saving confusion matrix...")
+        train_cm = calculate_confusion_matrix(
+            all_labels=train_labels, all_predictions=train_pred
+        )
+        validation_cm = calculate_confusion_matrix(
+            all_labels=validiation_labels, all_predictions=validation_pred
+        )
+
+        plot_and_save_confusion_matrix(
             cm=train_cm,
             phase="train",
+            model_name=trainer.__class__.__name__,
             output_folder=model_artifacts_folder,
             class_names=trainer.train_loader.dataset.classes,
         )
 
-        trainer._plot_and_save_confusion_matrix(
+        plot_and_save_confusion_matrix(
             cm=validation_cm,
             phase="validation",
+            model_name=model_name,
             output_folder=model_artifacts_folder,
             class_names=trainer.train_loader.dataset.classes,
         )
 
-        test_loss, test_accuracy, test_f1 = trainer._evaluate_loss_accuracy(
-            trainer.test_loader, trainer.test_accuracy, trainer.test_f1
+        labels, predictions, logits = trainer.predict(test_loader)
+
+        test_loss, test_accuracy, test_f1, test_recall, test_precision = (
+            evaluate_metrics(
+                labels=labels,
+                predictions=predictions,
+                logits=logits,
+                loss_function=trainer.loss_function,
+                accuracy_metric=trainer.test_accuracy,
+                f1_metric=trainer.test_f1,
+                recall_metric=trainer.test_recall,
+                precision_metric=trainer.test_precision,
+            )
         )
 
         test_metrics = pd.DataFrame(
@@ -105,20 +132,25 @@ if __name__ == "__main__":
                 "Test Loss": [test_loss],
                 "Test Accuracy": [test_accuracy],
                 "Test F1": [test_f1],
+                "Test Recall": [test_recall],
+                "Test Precision": [test_precision],
             }
         )
         print("Saving test metrics to csv...")
-        trainer._save_metrics_to_csv(
+        save_metrics_to_csv(
             test_metrics,
             output_folder=model_predictions_folder,
             file_name="test_metrics.csv",
         )
 
-        print("Saving test confusion matrix...")
-        test_cm = trainer._calculate_confusion_matrix(test_loader)
-        trainer._plot_and_save_confusion_matrix(
+        print("Saving confusion matrix...")
+        test_cm = calculate_confusion_matrix(
+            all_labels=labels, all_predictions=predictions
+        )
+        plot_and_save_confusion_matrix(
             cm=test_cm,
             phase="test",
+            model_name=trainer.__class__.__name__,
             output_folder=model_predictions_folder,
             class_names=trainer.train_loader.dataset.classes,
         )

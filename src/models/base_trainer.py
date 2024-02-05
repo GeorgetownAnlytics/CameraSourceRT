@@ -2,20 +2,14 @@ import os
 import math
 import torch
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from torch.optim.lr_scheduler import LambdaLR
-from sklearn.metrics import confusion_matrix, roc_curve, auc
 import torchmetrics
 from tqdm import tqdm
-from sklearn.preprocessing import label_binarize
-from itertools import cycle
-from .dataloader import CustomDataLoader
-from torch.utils.data.dataloader import DataLoader
 from typing import Tuple
-
 from config import paths
+from torch.utils.data.dataloader import DataLoader
+from torch.optim.lr_scheduler import LambdaLR
+from score import evaluate_metrics
+
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -66,13 +60,13 @@ class BaseTrainer:
             task="multiclass", num_classes=num_classes
         ).to(self.device)
         self.train_f1 = torchmetrics.F1Score(
-            task="multiclass", num_classes=num_classes
+            task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
         self.validation_f1 = torchmetrics.F1Score(
-            task="multiclass", num_classes=num_classes
+            task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
         self.test_f1 = torchmetrics.F1Score(
-            task="multiclass", num_classes=num_classes
+            task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
         self.train_precision = torchmetrics.Precision(
             task="multiclass", num_classes=num_classes, average="macro"
@@ -80,10 +74,16 @@ class BaseTrainer:
         self.validation_precision = torchmetrics.Precision(
             task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
+        self.test_precision = torchmetrics.Precision(
+            task="multiclass", num_classes=num_classes, average="macro"
+        ).to(self.device)
         self.train_recall = torchmetrics.Recall(
             task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
         self.validation_recall = torchmetrics.Recall(
+            task="multiclass", num_classes=num_classes, average="macro"
+        ).to(self.device)
+        self.test_recall = torchmetrics.Recall(
             task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
 
@@ -130,7 +130,7 @@ class BaseTrainer:
                 total=total_batches, desc=f"Training - Epoch {epoch + 1}/{num_epochs}"
             )
 
-            for batch_idx, (inputs, labels) in enumerate(self.train_loader):
+            for inputs, labels in self.train_loader:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
@@ -164,8 +164,19 @@ class BaseTrainer:
             metrics_history["Train Precision"].append(train_precision)
             metrics_history["Train Recall"].append(train_recall)
 
-            val_loss, val_accuracy, val_f1 = self._evaluate_loss_accuracy(
-                self.validation_loader, self.validation_accuracy, self.validation_f1
+            val_labels, val_pred, val_logits = self.predict(self.validation_loader)
+
+            val_loss, val_accuracy, val_f1, val_recall, val_precision = (
+                evaluate_metrics(
+                    val_labels,
+                    val_pred,
+                    val_logits,
+                    self.loss_function,
+                    self.validation_accuracy,
+                    self.validation_f1,
+                    self.validation_recall,
+                    self.validation_precision,
+                )
             )
 
             # Checkpointing
@@ -177,11 +188,6 @@ class BaseTrainer:
             metrics_history["Validation Accuracy"].append(val_accuracy)
             metrics_history["Validation F1"].append(val_f1)
 
-            val_precision, val_recall = self._evaluate_additional_metrics(
-                self.validation_loader,
-                self.validation_precision,
-                self.validation_recall,
-            )
             metrics_history["Validation Precision"].append(val_precision)
             metrics_history["Validation Recall"].append(val_recall)
 
@@ -196,7 +202,7 @@ class BaseTrainer:
 
         return metrics_history
 
-    def _save_checkpoint(self, epoch, output_folder):
+    def _save_checkpoint(self, epoch: int, output_folder: str) -> None:
         """
         Saves a checkpoint of the model.
 
@@ -228,119 +234,6 @@ class BaseTrainer:
                 )
 
         return lr_lambda
-
-    def _plot_extended_metrics(self, metrics_df, output_folder, model, loader):
-        # Ensure output folder exists
-        os.makedirs(output_folder, exist_ok=True)
-
-        # Plot for Precision and Recall (assuming these columns are in metrics_df)
-        plt.figure(figsize=(10, 5))
-        plt.plot(
-            metrics_df["Epoch"], metrics_df["Train Precision"], label="Train Precision"
-        )
-        plt.plot(metrics_df["Epoch"], metrics_df["Train Recall"], label="Train Recall")
-        plt.plot(
-            metrics_df["Epoch"],
-            metrics_df["Validation Precision"],
-            label="Validation Precision",
-        )
-        plt.plot(
-            metrics_df["Epoch"],
-            metrics_df["Validation Recall"],
-            label="Validation Recall",
-        )
-        plt.title("Precision and Recall over Epochs")
-        plt.xlabel("Epoch")
-        plt.ylabel("Value")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(os.path.join(output_folder, "precision_recall_plot.pdf"))
-        plt.close()
-
-        # Plot for Top-5 Accuracy
-        plt.figure(figsize=(10, 5))
-        plt.plot(
-            metrics_df["Epoch"],
-            metrics_df["Train Top-5 Accuracy"],
-            label="Train Top-5 Accuracy",
-        )
-        plt.plot(
-            metrics_df["Epoch"],
-            metrics_df["Validation Top-5 Accuracy"],
-            label="Validation Top-5 Accuracy",
-        )
-        plt.title("Top-5 Accuracy over Epochs")
-        plt.xlabel("Epoch")
-        plt.ylabel("Accuracy")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(os.path.join(output_folder, "top5_accuracy_plot.pdf"))
-        plt.close()
-
-        # Multiclass ROC
-        self.model.eval()
-        y_true = []
-        y_scores = []
-
-        # Binarize the output labels for all classes
-        num_classes = len(self.class_names)
-        with torch.no_grad():
-            for inputs, labels in loader:
-                inputs = inputs.to(self.device)
-                labels = labels.to(self.device)
-                outputs = model(inputs)
-
-                y_true.extend(labels.cpu().numpy())
-                y_scores.extend(outputs.cpu().numpy())
-
-        y_true = label_binarize(y_true, classes=range(num_classes))
-        y_scores = np.array(y_scores)
-
-        # Compute ROC curve and ROC area for each class
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
-
-        for i in range(num_classes):
-            fpr[i], tpr[i], _ = roc_curve(y_true[:, i], y_scores[:, i])
-            roc_auc[i] = auc(fpr[i], tpr[i])
-
-        # Plot all ROC curves
-        plt.figure(figsize=(10, 8))
-        colors = cycle(["blue", "red", "green", "cyan", "magenta", "yellow", "black"])
-        for i, color in zip(range(num_classes), colors):
-            plt.plot(
-                fpr[i],
-                tpr[i],
-                color=color,
-                lw=2,
-                label="ROC curve of class {0} (area = {1:0.2f})"
-                "".format(self.class_names[i], roc_auc[i]),
-            )
-
-        plt.plot([0, 1], [0, 1], "k--", lw=2)
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel("False Positive Rate")
-        plt.ylabel("True Positive Rate")
-        plt.title("Multiclass ROC")
-        plt.legend(loc="lower right")
-        plt.savefig(os.path.join(output_folder, "multiclass_roc_curve.pdf"))
-        plt.close()
-
-    def _evaluate_additional_metrics(
-        self, data_loader, precision_metric, recall_metric
-    ):
-        precision_metric.reset()
-        recall_metric.reset()
-        with torch.no_grad():
-            for inputs, labels in data_loader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self.model(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                precision_metric.update(predicted, labels)
-                recall_metric.update(predicted, labels)
-        return precision_metric.compute().item(), recall_metric.compute().item()
 
     def predict(
         self, data_loader: DataLoader
