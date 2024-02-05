@@ -4,6 +4,11 @@ from models.resnet_trainer import ResNetTrainer
 
 from utils import read_json_as_dict, set_seeds, get_model_parameters
 from config import paths
+from score import (
+    save_metrics_to_csv,
+    plot_and_save_confusion_matrix,
+    calculate_confusion_matrix,
+)
 
 
 def main():
@@ -56,26 +61,36 @@ def main():
     trainer.save_model()
 
     print("Saving metrics to csv...")
-    trainer._save_metrics_to_csv(
+    save_metrics_to_csv(
         metrics_history,
         output_folder=paths.MODEL_ARTIFACTS_DIR,
         file_name="train_validation_metrics.csv",
     )
 
-    print("Saving confusion matrix...")
-    train_cm = trainer._calculate_confusion_matrix(train_loader)
-    validation_cm = trainer._calculate_confusion_matrix(validation_loader)
+    print("Predicting train and validation labels...")
+    train_labels, train_pred = trainer.predict(train_loader)
+    validiation_labels, validation_pred = trainer.predict(validation_loader)
 
-    trainer._plot_and_save_confusion_matrix(
+    print("Saving confusion matrix...")
+    train_cm = calculate_confusion_matrix(
+        all_labels=train_labels, all_predictions=train_pred
+    )
+    validation_cm = calculate_confusion_matrix(
+        all_labels=validiation_labels, all_predictions=validation_pred
+    )
+
+    plot_and_save_confusion_matrix(
         cm=train_cm,
         phase="train",
+        model_name=trainer.__class__.__name__,
         output_folder=paths.MODEL_ARTIFACTS_DIR,
         class_names=trainer.train_loader.dataset.classes,
     )
 
-    trainer._plot_and_save_confusion_matrix(
+    plot_and_save_confusion_matrix(
         cm=validation_cm,
         phase="validation",
+        model_name=model_name,
         output_folder=paths.MODEL_ARTIFACTS_DIR,
         class_names=trainer.train_loader.dataset.classes,
     )

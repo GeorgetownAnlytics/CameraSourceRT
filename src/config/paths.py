@@ -42,8 +42,6 @@ DATA_SPLIT_DIR = os.path.join(MODEL_ARTIFACTS_DIR, "data_split")
 
 PREDICTOR_DIR = os.path.join(MODEL_ARTIFACTS_DIR, "predictor")
 
-PREDICTOR_FILE_PATH = os.path.join(PREDICTOR_DIR, "predictor.joblib")
-
 MODEL_DATA_FILE_PATH = os.path.join(MODEL_ARTIFACTS_DIR, "model_data.joblib")
 
 CHECKPOINTS_DIR = os.path.join(MODEL_ARTIFACTS_DIR, "checkpoints")

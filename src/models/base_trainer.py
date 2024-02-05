@@ -12,6 +12,8 @@ from tqdm import tqdm
 from sklearn.preprocessing import label_binarize
 from itertools import cycle
 from .dataloader import CustomDataLoader
+from torch.utils.data.dataloader import DataLoader
+from typing import Tuple
 
 from config import paths
 
@@ -208,28 +210,6 @@ class BaseTrainer:
         torch.save(self.model.state_dict(), checkpoint_path)
         print(f"Checkpoint saved to {checkpoint_path}")
 
-    def _evaluate_loss_accuracy(self, data_loader, accuracy_metric, f1_metric):
-        self.model.eval()
-        total_loss = 0.0
-        accuracy_metric.reset()
-        f1_metric.reset()
-
-        with torch.no_grad():
-            for inputs, labels in data_loader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self.model(inputs)
-                loss = self.loss_function(outputs, labels)
-                total_loss += loss.item() * inputs.size(0)
-
-                _, predicted = torch.max(outputs.data, 1)
-                accuracy_metric.update(predicted, labels)
-                f1_metric.update(predicted, labels)
-
-        avg_loss = total_loss / len(data_loader.dataset)
-        accuracy = accuracy_metric.compute()
-        f1_score = f1_metric.compute()
-        return avg_loss, accuracy, f1_score
-
     def _warmup_cosine_annealing(self, base_lr, warmup_epochs, num_epochs):
         def lr_lambda(epoch):
             if epoch < warmup_epochs:
@@ -248,126 +228,6 @@ class BaseTrainer:
                 )
 
         return lr_lambda
-
-    def _calculate_confusion_matrix(self, loader):
-        all_preds, all_labels = [], []
-        self.model.eval()
-        with torch.no_grad():
-            for inputs, labels in loader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self.model(inputs)
-                _, preds = torch.max(outputs, 1)
-                all_preds.extend(preds.cpu().numpy())
-                all_labels.extend(labels.cpu().numpy())
-
-        return confusion_matrix(all_labels, all_preds)
-
-    def save_confusion_matrix_csv(self, loader, phase, output_folder):
-        """
-        Saves the confusion matrix to a CSV file.
-
-        Args:
-            loader (torch.utils.data.dataloader.DataLoader): The data loader with data used to make predictions.
-            phase (str): The phase during which the confusion matrix was generated (e.g., 'train', 'test', 'validation').
-            output_folder (str): The directory where the CSV file will be saved.
-        """
-        confusion_matrix = self._calculate_confusion_matrix(loader)
-        cm_df = pd.DataFrame(
-            confusion_matrix, index=self.class_names, columns=self.class_names
-        )
-        cm_csv_filename = os.path.join(output_folder, f"{phase}_confusion_matrix.csv")
-        cm_df.to_csv(
-            cm_csv_filename, index_label="True Label", header="Predicted Label"
-        )
-        print(f"Confusion matrix saved as CSV in {cm_csv_filename}")
-        return confusion_matrix
-
-    def _plot_and_save_confusion_matrix(self, cm, phase, output_folder, class_names):
-        plt.figure(figsize=(16, 16))
-        sns.heatmap(
-            cm,
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            xticklabels=class_names,
-            yticklabels=class_names,
-        )
-        plt.title(f"{self.model.__class__.__name__} - {phase} Confusion Matrix")
-        plt.ylabel("True label")
-        plt.xlabel("Predicted label")
-        plt.tight_layout()
-        cm_filename = os.path.join(
-            output_folder,
-            f"{phase}_confusion_matrix_{self.model.__class__.__name__}.pdf",
-        )
-        plt.savefig(cm_filename, format="pdf", bbox_inches="tight")
-        cm_df = pd.DataFrame(cm, index=class_names, columns=class_names)
-        cm_csv_filename = os.path.join(output_folder, f"{phase}_confusion_matrix.csv")
-        cm_df.to_csv(
-            cm_csv_filename, index_label="True Label", header="Predicted Label"
-        )
-        plt.close()
-
-    def _save_metrics_to_csv(self, metrics_history, output_folder, file_name):
-        # Convert all tensor values in metrics_history to CPU and then to NumPy
-        for key in metrics_history:
-            metrics_history[key] = [
-                x.cpu().numpy() if torch.is_tensor(x) else x
-                for x in metrics_history[key]
-            ]
-
-        metrics_df = pd.DataFrame(metrics_history)
-        metrics_csv_path = os.path.join(output_folder, file_name)
-        metrics_df.to_csv(metrics_csv_path, index=False)
-
-    def _plot_metrics(self, metrics_history, output_folder):
-        plt.figure(figsize=(16, 10))
-        epochs = range(1, len(metrics_history["Epoch"]) + 1)
-        plt.plot(epochs, metrics_history["Train Loss"], label="Training Loss")
-        plt.plot(epochs, metrics_history["Train Accuracy"], label="Training Accuracy")
-        plt.plot(epochs, metrics_history["Train F1"], label="Training F1 Score")
-        plt.plot(epochs, metrics_history["Validation Loss"], label="Validation Loss")
-        plt.plot(
-            epochs, metrics_history["Validation Accuracy"], label="Validation Accuracy"
-        )
-        plt.plot(epochs, metrics_history["Validation F1"], label="Validation F1 Score")
-        plt.title("Metrics Over Epochs")
-        plt.xlabel("Epochs")
-        plt.ylabel("Metrics")
-        plt.legend()
-        plt.grid(True)
-        plot_filename = os.path.join(output_folder, "metrics_over_epochs.pdf")
-        plt.savefig(plot_filename, format="pdf", bbox_inches="tight")
-        plt.close()
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(
-            metrics_history["Epoch"],
-            metrics_history["Train Precision"],
-            label="Train Precision",
-        )
-        plt.plot(
-            metrics_history["Epoch"],
-            metrics_history["Train Recall"],
-            label="Train Recall",
-        )
-        plt.plot(
-            metrics_history["Epoch"],
-            metrics_history["Validation Precision"],
-            label="Validation Precision",
-        )
-        plt.plot(
-            metrics_history["Epoch"],
-            metrics_history["Validation Recall"],
-            label="Validation Recall",
-        )
-        plt.xlabel("Epoch")
-        plt.ylabel("Metric Value")
-        plt.title("Training and Validation Precision and Recall")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(os.path.join(output_folder, "precision_recall_plot.pdf"))
-        plt.close()
 
     def _plot_extended_metrics(self, metrics_df, output_folder, model, loader):
         # Ensure output folder exists
@@ -482,51 +342,37 @@ class BaseTrainer:
                 recall_metric.update(predicted, labels)
         return precision_metric.compute().item(), recall_metric.compute().item()
 
+    def predict(
+        self, data_loader: DataLoader
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Predicts the class labels and logits for the data in a data loader.
 
-if __name__ == "__main__":
-    # Initialize data loaders
-    custom_data_loader = CustomDataLoader()
-    train_loader, test_loader, validation_loader = (
-        custom_data_loader.train_loader,
-        custom_data_loader.test_loader,
-        custom_data_loader.validation_loader,
-    )
+        Args:
+            data_loader (DataLoader): The input data.
 
-    # Initialize the model
-    # Note: Replace 'YourModel' with your actual model class
-    model = BaseTrainer()
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: (Truth labels, Predicted class labels, Logits).
+        """
+        self.model.eval()
+        with torch.no_grad():
+            all_labels, all_predicted, all_logits = (
+                np.array([]),
+                np.array([]),
+                np.array([]),
+            )
+            for inputs, labels in data_loader:
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                outputs = self.model(inputs)
+                _, predicted = torch.max(outputs.data, 1)
 
-    # Create an instance of the BaseTrainer
-    trainer = BaseTrainer(
-        model=model,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        validation_loader=validation_loader,
-    )
+                # Convert tensors to numpy arrays before appending
+                all_predicted = np.append(all_predicted, predicted.cpu().numpy())
+                all_labels = np.append(all_labels, labels.cpu().numpy())
+                all_logits = (
+                    np.concatenate((all_logits, outputs.cpu().numpy()), axis=0)
+                    if all_logits.size
+                    else outputs.cpu().numpy()
+                )
 
-    # Set device and loss function for the trainer
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    trainer.set_device(device)
-    trainer.set_loss_function(torch.nn.CrossEntropyLoss())
-
-    # Specify the output folder to save metrics and plots
-    output_folder = "output"
-    os.makedirs(output_folder, exist_ok=True)
-
-    # Start training and evaluation
-    trainer.train(num_epochs=10)
-
-    # Optionally, you can generate and plot confusion matrices
-    class_names = train_loader.dataset.classes  # Or however you obtain class names
-    train_cm = trainer._calculate_confusion_matrix(train_loader)
-    trainer._plot_and_save_confusion_matrix(
-        train_cm, "train", output_folder, class_names
-    )
-
-    test_cm = trainer._calculate_confusion_matrix(test_loader)
-    trainer._plot_and_save_confusion_matrix(test_cm, "test", output_folder, class_names)
-
-    validation_cm = trainer._calculate_confusion_matrix(validation_loader)
-    trainer._plot_and_save_confusion_matrix(
-        validation_cm, "validation", output_folder, class_names
-    )
+        return all_labels, all_predicted, all_logits
