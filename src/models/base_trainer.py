@@ -6,9 +6,11 @@ import torchmetrics
 from tqdm import tqdm
 from typing import Tuple
 from config import paths
+from typing import Union, Dict, List
 from torch.utils.data.dataloader import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
 from score import evaluate_metrics
+from torch.nn import CrossEntropyLoss, MultiMarginLoss
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -46,7 +48,16 @@ class BaseTrainer:
         else:
             self.class_names = [str(i) for i in range(len(train_loader.dataset))]
 
-    def _initialize_metrics(self, num_classes):
+    def _initialize_metrics(self, num_classes: int) -> None:
+        """
+        Initializes metrics used in evaluation.
+
+        Args:
+            num_classes (int): Number of target classes.
+
+        Returns: None
+
+        """
         self.train_accuracy = torchmetrics.Accuracy(
             top_k=1, task="multiclass", num_classes=num_classes
         ).to(self.device)
@@ -87,15 +98,50 @@ class BaseTrainer:
             task="multiclass", num_classes=num_classes, average="macro"
         ).to(self.device)
 
-    def set_device(self, device):
+    def set_device(self, device: str) -> None:
+        """
+        Sets the device used for training.
+
+        Args:
+            device (str): Name of the device (ex: "cuda", "cpu").
+
+        Returns: None
+        """
         self.device = torch.device(device)
         self.model.to(self.device)
         print(f"Device set to {device}")
 
-    def set_loss_function(self, loss_function):
+    def set_loss_function(
+        self, loss_function: Union[CrossEntropyLoss, MultiMarginLoss]
+    ) -> None:
+        """
+        Sets loss function used in training.
+
+        Args:
+            loss_function (Union[CrossEntropyLoss, MultiMarginLoss]): Loss function.
+
+        Returns: None
+        """
         self.loss_function = loss_function
 
-    def train(self, num_epochs=40, checkpoint_dir_path=paths.CHECKPOINTS_DIR):
+    def train(
+        self, num_epochs: int = 40, checkpoint_dir_path: str = paths.CHECKPOINTS_DIR
+    ) -> Dict[str, List]:
+        """
+        Train the model on the data and calculate metrics per epoch on train and validation datasets.
+
+        Args:
+            num_epochs (int): The number of epochs.
+            checkpoint_dir_path (str): Path for directory in which checkpoints are saved.
+
+
+        Returns (Dict[str, List]): Train and validation metrics per epoch.
+        example: {
+            "Epoch": [0, 1, 2],
+            "Train Loss": [1.5, 1.3, 1],
+            "Validation Loss": [3, 2.5, 2.2],
+        }
+        """
         # Ensure at least 1 warmup epoch
         warmup_epochs = max(1, num_epochs // 5)
         self.model.train()

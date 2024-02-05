@@ -1,3 +1,5 @@
+"""This module contains functions used in evaluating/plotting metrics"""
+
 import os
 import torch
 import numpy as np
@@ -88,7 +90,7 @@ def save_confusion_matrix_csv(
     phase: str,
     class_names: List[str],
     output_folder: str,
-):
+) -> None:
     """
     Saves the confusion matrix to a CSV file.
 
