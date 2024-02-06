@@ -2,6 +2,8 @@ import os
 import json
 import random
 import torch
+import time
+import tracemalloc
 import numpy as np
 from typing import Dict
 from config import paths
@@ -99,3 +101,30 @@ def get_model_parameters(
         pass
 
     return hyperparameters
+
+
+class TimeAndMemoryTracker(object):
+    """
+    This class serves as a context manager to track time and
+    memory allocated by code executed inside it.
+    """
+
+    def __enter__(self):
+        tracemalloc.start()
+        self.initial_current, self.initial_peak = tracemalloc.get_traced_memory()
+        self.start_time = time.time()
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        current_diff = current - self.initial_current
+        peak_diff = peak - self.initial_peak
+
+        self.end_time = time.time()
+        elapsed_time = self.end_time - self.start_time
+
+        print(f"Execution time: {elapsed_time:.2f} seconds")
+        print(f"Memory allocated (peak): {peak_diff / 1024**2:.2f} MB")

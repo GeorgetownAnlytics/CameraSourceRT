@@ -10,6 +10,8 @@ from score import (
     calculate_confusion_matrix,
 )
 
+from utils import TimeAndMemoryTracker
+
 
 def main():
     config = read_json_as_dict(paths.CONFIG_FILE)
@@ -55,7 +57,8 @@ def main():
     trainer.set_loss_function(loss_function)
 
     print("Training model...")
-    metrics_history = trainer.train(num_epochs=num_epochs)
+    with TimeAndMemoryTracker() as _:
+        metrics_history = trainer.train(num_epochs=num_epochs)
 
     print("Saving model...")
     trainer.save_model()

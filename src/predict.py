@@ -7,6 +7,7 @@ from score import (
     plot_and_save_confusion_matrix,
     save_metrics_to_csv,
 )
+from utils import TimeAndMemoryTracker
 
 
 if __name__ == "__main__":
@@ -14,7 +15,8 @@ if __name__ == "__main__":
     test_loader = trainer.test_loader
 
     print("Predicting on test data...")
-    labels, predictions, logits = trainer.predict(test_loader)
+    with TimeAndMemoryTracker() as _:
+        labels, predictions, logits = trainer.predict(test_loader)
 
     test_loss, test_accuracy, test_f1, test_recall, test_precision = evaluate_metrics(
         labels=labels,

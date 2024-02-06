@@ -12,8 +12,10 @@ from score import (
     save_metrics_to_csv,
 )
 
+from utils import TimeAndMemoryTracker
 
-if __name__ == "__main__":
+
+def main():
     config = read_json_as_dict(paths.CONFIG_FILE)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -68,6 +70,7 @@ if __name__ == "__main__":
         os.makedirs(checkpoint_dir_path, exist_ok=True)
 
         print("Training model...")
+
         metrics_history = trainer.train(
             num_epochs=num_epochs, checkpoint_dir_path=checkpoint_dir_path
         )
@@ -162,3 +165,8 @@ if __name__ == "__main__":
         print(f"Training and evaluation for model {model_name} completed.\n")
 
     print("All models have been processed.")
+
+
+if __name__ == "__main__":
+    with TimeAndMemoryTracker() as _:
+        main()
