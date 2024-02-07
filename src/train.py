@@ -11,9 +11,11 @@ from score import (
 )
 
 from utils import TimeAndMemoryTracker
+from logger import get_logger
 
 
 def main():
+    logger = get_logger(task_name="train")
     config = read_json_as_dict(paths.CONFIG_FILE)
 
     model_name = config.get("model_name")
@@ -33,14 +35,14 @@ def main():
         if loss_choice == "crossentropy"
         else torch.nn.MultiMarginLoss()
     )
-    print("Setting seeds to:", config["seed"])
+    logger.info("Setting seeds to:", config["seed"])
     set_seeds(config["seed"])
 
     custom_data_loader = CustomDataLoader(
         base_folder=paths.INPUTS_DIR, batch_size=batch_size, num_workers=num_workers
     )
 
-    print(f"\nWorking on model: {model_name}")
+    logger.info(f"\nWorking on model: {model_name}")
 
     train_loader, test_loader, validation_loader = (
         custom_data_loader.train_loader,
@@ -53,28 +55,30 @@ def main():
     trainer = ResNetTrainer(
         train_loader, test_loader, validation_loader, num_classes, model_name
     )
+
+    logger.info(f"Setting device to {device}")
     trainer.set_device(device)
     trainer.set_loss_function(loss_function)
 
-    print("Training model...")
+    logger.info("Training model...")
     with TimeAndMemoryTracker() as _:
         metrics_history = trainer.train(num_epochs=num_epochs)
 
-    print("Saving model...")
+    logger.info("Saving model...")
     trainer.save_model()
 
-    print("Saving metrics to csv...")
+    logger.info("Saving metrics to csv...")
     save_metrics_to_csv(
         metrics_history,
         output_folder=paths.MODEL_ARTIFACTS_DIR,
         file_name="train_validation_metrics.csv",
     )
 
-    print("Predicting train and validation labels...")
+    logger.info("Predicting train and validation labels...")
     train_labels, train_pred, _ = trainer.predict(train_loader)
     validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
 
-    print("Saving confusion matrix...")
+    logger.info("Saving confusion matrix...")
     train_cm = calculate_confusion_matrix(
         all_labels=train_labels, all_predictions=train_pred
     )
@@ -98,11 +102,13 @@ def main():
         class_names=trainer.train_loader.dataset.classes,
     )
 
-    print(f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}")
+    logger.info(
+        f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}"
+    )
 
-    print(f"Training and evaluation for model {model_name} completed.\n")
+    logger.info(f"Training and evaluation for model {model_name} completed.\n")
 
-    print("All models have been processed.")
+    logger.info("All models have been processed.")
 
 
 if __name__ == "__main__":

@@ -109,7 +109,6 @@ class BaseTrainer:
         """
         self.device = torch.device(device)
         self.model.to(self.device)
-        print(f"Device set to {device}")
 
     def set_loss_function(
         self, loss_function: Union[CrossEntropyLoss, MultiMarginLoss]

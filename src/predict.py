@@ -8,13 +8,16 @@ from score import (
     save_metrics_to_csv,
 )
 from utils import TimeAndMemoryTracker
+from logger import get_logger
 
 
-if __name__ == "__main__":
+def predict():
+    logger = get_logger(task_name="predict")
+
     trainer = ResNetTrainer.load_model()
     test_loader = trainer.test_loader
 
-    print("Predicting on test data...")
+    logger.info("Predicting on test data...")
     with TimeAndMemoryTracker() as _:
         labels, predictions, logits = trainer.predict(test_loader)
 
@@ -38,12 +41,12 @@ if __name__ == "__main__":
             "Test Precision": [test_precision],
         }
     )
-    print("Saving metrics to csv...")
+    logger.info("Saving metrics to csv...")
     save_metrics_to_csv(
         test_metrics, output_folder=paths.PREDICTIONS_DIR, file_name="test_metrics.csv"
     )
 
-    print("Saving confusion matrix...")
+    logger.info("Saving confusion matrix...")
     test_cm = calculate_confusion_matrix(all_labels=labels, all_predictions=predictions)
     plot_and_save_confusion_matrix(
         cm=test_cm,
@@ -53,6 +56,10 @@ if __name__ == "__main__":
         class_names=trainer.train_loader.dataset.classes,
     )
 
-    print(
+    logger.info(
         f"Test - After Training: Loss: {test_loss}, Accuracy: {test_accuracy}, F1 Score: {test_f1}"
     )
+
+
+if __name__ == "__main__":
+    predict()
