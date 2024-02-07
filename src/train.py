@@ -35,7 +35,7 @@ def main():
         if loss_choice == "crossentropy"
         else torch.nn.MultiMarginLoss()
     )
-    logger.info("Setting seeds to:", config["seed"])
+    logger.info(f"Setting seeds to: {config['seed']}")
     set_seeds(config["seed"])
 
     custom_data_loader = CustomDataLoader(
