@@ -111,20 +111,14 @@ class TimeAndMemoryTracker(object):
 
     def __enter__(self):
         tracemalloc.start()
-        self.initial_current, self.initial_peak = tracemalloc.get_traced_memory()
         self.start_time = time.time()
-
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        current, peak = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
-
-        current_diff = current - self.initial_current
-        peak_diff = peak - self.initial_peak
-
         self.end_time = time.time()
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
         elapsed_time = self.end_time - self.start_time
 
         print(f"Execution time: {elapsed_time:.2f} seconds")
-        print(f"Memory allocated (peak): {peak_diff / 1024**2:.2f} MB")
+        print(f"Memory allocated (peak): {peak / 1024**2:.2f} MB")
