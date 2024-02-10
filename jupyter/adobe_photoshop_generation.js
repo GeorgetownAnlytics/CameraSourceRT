@@ -23,7 +23,7 @@ for (var i = 0; i < 10; i++) {
     var colorRef = getRandomColor();
     
     // Now apply fill to the current selection
-    app.activeDocument.selection.fill(colorRef);
+    app.activeDocument.selection.generativefill(colorRef);
     
     // Deselect to clean up selection borders
     app.activeDocument.selection.deselect();
