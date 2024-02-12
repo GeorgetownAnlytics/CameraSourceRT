@@ -2,7 +2,6 @@ import os
 import math
 import torch
 import numpy as np
-import torchmetrics
 from tqdm import tqdm
 from typing import Tuple
 from config import paths
@@ -38,65 +37,11 @@ class BaseTrainer:
         self.model.to(self.device)
         os.makedirs(self.output_folder, exist_ok=True)
 
-        # Initialize metrics for multiclass classification
-        num_classes = len(train_loader.dataset.classes)
-        self._initialize_metrics(num_classes)
-
         # Initialize class names from train loader if available
         if hasattr(train_loader.dataset, "classes"):
             self.class_names = train_loader.dataset.classes
         else:
             self.class_names = [str(i) for i in range(len(train_loader.dataset))]
-
-    def _initialize_metrics(self, num_classes: int) -> None:
-        """
-        Initializes metrics used in evaluation.
-
-        Args:
-            num_classes (int): Number of target classes.
-
-        Returns: None
-
-        """
-        self.train_accuracy = torchmetrics.Accuracy(
-            top_k=1, task="multiclass", num_classes=num_classes
-        ).to(self.device)
-        self.train_top5_accuracy = torchmetrics.Accuracy(
-            top_k=5, task="multiclass", num_classes=num_classes
-        ).to(self.device)
-        self.validation_accuracy = torchmetrics.Accuracy(
-            task="multiclass", num_classes=num_classes
-        ).to(self.device)
-        self.test_accuracy = torchmetrics.Accuracy(
-            task="multiclass", num_classes=num_classes
-        ).to(self.device)
-        self.train_f1 = torchmetrics.F1Score(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.validation_f1 = torchmetrics.F1Score(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.test_f1 = torchmetrics.F1Score(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.train_precision = torchmetrics.Precision(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.validation_precision = torchmetrics.Precision(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.test_precision = torchmetrics.Precision(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.train_recall = torchmetrics.Recall(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.validation_recall = torchmetrics.Recall(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
-        self.test_recall = torchmetrics.Recall(
-            task="multiclass", num_classes=num_classes, average="macro"
-        ).to(self.device)
 
     def set_device(self, device: str) -> None:
         """
@@ -169,8 +114,6 @@ class BaseTrainer:
         for epoch in range(num_epochs):
             print(f"Starting epoch {epoch + 1}/{num_epochs}")
             running_loss = 0.0
-            self.train_accuracy.reset()
-            self.train_f1.reset()
             train_progress_bar = tqdm(
                 total=total_batches, desc=f"Training - Epoch {epoch + 1}/{num_epochs}"
             )
@@ -182,64 +125,47 @@ class BaseTrainer:
                 _, predicted = torch.max(outputs.data, 1)
                 loss = self.loss_function(outputs, labels)
                 loss.backward()
-                self.train_top5_accuracy.update(outputs, labels)
-                self.train_precision.update(predicted, labels)
-                self.train_recall.update(predicted, labels)
+
+                train_metrics = evaluate_metrics(
+                    labels=labels.cpu().numpy(),
+                    predictions=predicted.cpu().numpy(),
+                    logits=outputs.data.cpu().numpy(),
+                    loss_function=self.loss_function,
+                    top_k=[5],
+                )
                 optimizer.step()
                 running_loss += loss.item()
-
-                self.train_accuracy.update(predicted, labels)
-                self.train_f1.update(predicted, labels)
                 train_progress_bar.update(1)
 
-            avg_loss = running_loss / total_batches
-            train_accuracy = self.train_accuracy.compute()
-            train_f1_score = self.train_f1.compute()
-            train_precision = (
-                self.train_precision.compute().item()
-            )  # Convert to Python scalar
-            train_recall = (
-                self.train_recall.compute().item()
-            )  # Convert to Python scalar
-
             metrics_history["Epoch"].append(epoch + 1)
-            metrics_history["Train Loss"].append(avg_loss)
-            metrics_history["Train Accuracy"].append(train_accuracy)
-            metrics_history["Train F1"].append(train_f1_score)
-            metrics_history["Train Precision"].append(train_precision)
-            metrics_history["Train Recall"].append(train_recall)
+            metrics_history["Train Loss"].append(train_metrics["loss"])
+            metrics_history["Train Accuracy"].append(train_metrics["accuracy"])
+            metrics_history["Train F1"].append(train_metrics["f1-score"])
+            metrics_history["Train Precision"].append(train_metrics["precision"])
+            metrics_history["Train Recall"].append(train_metrics["recall"])
 
             val_labels, val_pred, val_logits = self.predict(self.validation_loader)
 
-            val_loss, val_accuracy, val_f1, val_recall, val_precision = (
-                evaluate_metrics(
-                    val_labels,
-                    val_pred,
-                    val_logits,
-                    self.loss_function,
-                    self.validation_accuracy,
-                    self.validation_f1,
-                    self.validation_recall,
-                    self.validation_precision,
-                )
+            val_metrics = evaluate_metrics(
+                val_labels, val_pred, val_logits, self.loss_function, top_k=[5]
             )
 
             # Checkpointing
-            if val_accuracy > best_val_accuracy:
-                best_val_accuracy = val_accuracy
+            if val_metrics["accuracy"] > best_val_accuracy:
+                best_val_accuracy = val_metrics["accuracy"]
                 self._save_checkpoint(epoch, checkpoint_dir_path)
 
-            metrics_history["Validation Loss"].append(val_loss)
-            metrics_history["Validation Accuracy"].append(val_accuracy)
-            metrics_history["Validation F1"].append(val_f1)
+            metrics_history["Validation Loss"].append(val_metrics["loss"])
+            metrics_history["Validation Accuracy"].append(val_metrics["accuracy"])
+            metrics_history["Validation F1"].append(val_metrics["f1-score"])
 
-            metrics_history["Validation Precision"].append(val_precision)
-            metrics_history["Validation Recall"].append(val_recall)
+            metrics_history["Validation Precision"].append(val_metrics["precision"])
+            metrics_history["Validation Recall"].append(val_metrics["recall"])
 
             print(
-                f"Epoch {epoch + 1}/{num_epochs} Completed: Train Loss: {avg_loss},\
-                Train Accuracy: {train_accuracy}, Train F1: {train_f1_score}, Validation Loss: {val_loss},\
-                    Validation Accuracy: {val_accuracy}, Validation F1: {val_f1}"
+                f"Epoch {epoch + 1}/{num_epochs} Completed: Train Loss: {train_metrics['loss']},\
+                Train Accuracy: {train_metrics['accuracy']}, Train F1: {train_metrics['f1-score']}, Validation Loss: {val_metrics['loss']},\
+                    Validation Accuracy: {val_metrics['accuracy']}, Validation F1: {val_metrics['f1-score']}"
             )
             scheduler.step()
 

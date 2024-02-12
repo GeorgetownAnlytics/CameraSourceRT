@@ -117,31 +117,26 @@ def main():
 
         labels, predictions, logits = trainer.predict(test_loader)
 
-        test_loss, test_accuracy, test_f1, test_recall, test_precision = (
-            evaluate_metrics(
-                labels=labels,
-                predictions=predictions,
-                logits=logits,
-                loss_function=trainer.loss_function,
-                accuracy_metric=trainer.test_accuracy,
-                f1_metric=trainer.test_f1,
-                recall_metric=trainer.test_recall,
-                precision_metric=trainer.test_precision,
-            )
+        test_metrics = evaluate_metrics(
+            labels=labels,
+            predictions=predictions,
+            logits=logits,
+            loss_function=trainer.loss_function,
+            top_k=[5],
         )
 
-        test_metrics = pd.DataFrame(
+        test_metrics_df = pd.DataFrame(
             {
-                "Test Loss": [test_loss],
-                "Test Accuracy": [test_accuracy],
-                "Test F1": [test_f1],
-                "Test Recall": [test_recall],
-                "Test Precision": [test_precision],
+                "Test Loss": [test_metrics["loss"]],
+                "Test Accuracy": [test_metrics["accuracy"]],
+                "Test F1": [test_metrics["f1-score"]],
+                "Test Recall": [test_metrics["recall"]],
+                "Test Precision": [test_metrics["precision"]],
             }
         )
         print("Saving test metrics to csv...")
         save_metrics_to_csv(
-            test_metrics,
+            test_metrics_df,
             output_folder=model_predictions_folder,
             file_name="test_metrics.csv",
         )

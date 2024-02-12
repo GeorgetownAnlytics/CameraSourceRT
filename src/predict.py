@@ -21,29 +21,28 @@ def predict():
     with TimeAndMemoryTracker() as _:
         labels, predictions, logits = trainer.predict(test_loader)
 
-    test_loss, test_accuracy, test_f1, test_recall, test_precision = evaluate_metrics(
+    test_metrics = evaluate_metrics(
         labels=labels,
         predictions=predictions,
         logits=logits,
         loss_function=trainer.loss_function,
-        accuracy_metric=trainer.test_accuracy,
-        f1_metric=trainer.test_f1,
-        recall_metric=trainer.test_recall,
-        precision_metric=trainer.test_precision,
+        top_k=[5],
     )
 
-    test_metrics = pd.DataFrame(
+    test_metrics_df = pd.DataFrame(
         {
-            "Test Loss": [test_loss],
-            "Test Accuracy": [test_accuracy],
-            "Test F1": [test_f1],
-            "Test Recall": [test_recall],
-            "Test Precision": [test_precision],
+            "Test Loss": [test_metrics["loss"]],
+            "Test Accuracy": [test_metrics["accuracy"]],
+            "Test F1": [test_metrics["f1-score"]],
+            "Test Recall": [test_metrics["recall"]],
+            "Test Precision": [test_metrics["precision"]],
         }
     )
     logger.info("Saving metrics to csv...")
     save_metrics_to_csv(
-        test_metrics, output_folder=paths.PREDICTIONS_DIR, file_name="test_metrics.csv"
+        test_metrics_df,
+        output_folder=paths.PREDICTIONS_DIR,
+        file_name="test_metrics.csv",
     )
 
     logger.info("Saving confusion matrix...")
@@ -57,7 +56,7 @@ def predict():
     )
 
     logger.info(
-        f"Test - After Training: Loss: {test_loss}, Accuracy: {test_accuracy}, F1 Score: {test_f1}"
+        f"Test - After Training: Loss: {test_metrics['loss']}, Accuracy: {test_metrics['accuracy']}, F1 Score: {test_metrics['f1-score']}"
     )
 
 

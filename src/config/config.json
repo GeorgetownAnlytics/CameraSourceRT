@@ -1,6 +1,9 @@
 {
     "model_name": "resnet18",
-    "run_all_model_names": ["resnet18", "resnet34", "resnet50", "resnet101"],
+    "run_all_model_names": [
+        "resnet18",
+        "resnet34"
+    ],
     "seed": 42,
     "num_epochs": 2,
     "num_workers": 0,

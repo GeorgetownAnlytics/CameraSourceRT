@@ -7,11 +7,18 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import cycle
-from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import (
+    roc_curve,
+    auc,
+    confusion_matrix,
+    accuracy_score,
+    top_k_accuracy_score,
+    recall_score,
+    precision_score,
+    f1_score,
+)
 from sklearn.preprocessing import label_binarize
 from typing import Dict, List, Union, Tuple
-from torchmetrics import Accuracy, Recall, Precision, F1Score
 from torch.nn.modules.loss import CrossEntropyLoss, MultiMarginLoss
 
 
@@ -168,46 +175,44 @@ def evaluate_metrics(
     predictions: np.ndarray,
     logits: np.ndarray,
     loss_function: Union[CrossEntropyLoss, MultiMarginLoss],
-    accuracy_metric: Accuracy,
-    f1_metric: F1Score,
-    recall_metric: Recall,
-    precision_metric: Precision,
-) -> Tuple[float, float, float, float, float]:
+    top_k: List[int],
+) -> Dict[str, float]:
     """
-    Evaluates loss, accuracy and f1-score on given labels and predictions.
+    Evaluates loss, accuracy, recall, precision, f1-score and top k accuracy on given labels and predictions.
 
     Args:
         labels (np.ndarray): True labels.
         predictions (np.ndarray): Predicted labels.
+        logits (np.ndarray): Predicted probabilities of class labels.
         loss_function (Union[CrossEntropyLoss, MultiMarginLoss]): The loss function.
-        accuracy_metric (Accuracy): torchmetrics Accuracy object.
-        f1_metric (F1Score): torchmetrics F1Score object.
-        recall_metric (Recall): torchmetrics Recall object.
-        precision_metric (Precision): torchmetrics Precision object.
+        top_k (List[int]): The values to use for k when calculating top k accuracy.
 
-
-    Returns (Tuple[float, float, float, float, float]): (loss, accuracy, f1-score, recall, precision)
+    Returns (Dict[str]): The calculated metrics.
     """
-    accuracy_metric.reset()
-    f1_metric.reset()
-    recall_metric.reset()
-    precision_metric.reset()
-
-    labels = torch.from_numpy(labels).long()
+    torch_labels = torch.from_numpy(labels).long()
     predictions = torch.from_numpy(predictions)
-    logits = torch.from_numpy(logits)
-    loss = loss_function(logits, labels).item()
+    torch_logits = torch.from_numpy(logits)
+    loss = loss_function(torch_logits, torch_labels).item()
 
-    accuracy_metric.update(predictions, labels)
-    f1_metric.update(predictions, labels)
-    precision_metric.update(predictions, labels)
-    recall_metric.update(predictions, labels)
+    accuracy = accuracy_score(y_pred=predictions, y_true=labels)
+    recall = recall_score(y_pred=predictions, y_true=labels, average="macro")
+    precision = precision_score(y_pred=predictions, y_true=labels, average="macro")
+    f1 = f1_score(y_pred=predictions, y_true=labels, average="macro")
+    top_k_accuracy = {}
 
-    accuracy = accuracy_metric.compute().item()
-    f1_score = f1_metric.compute().item()
-    recall = recall_metric.compute().item()
-    precision = precision_metric.compute().item()
-    return loss, accuracy, f1_score, recall, precision
+    for k in top_k:
+        score = top_k_accuracy_score(y_score=logits, y_true=labels, k=k)
+        top_k_accuracy[k] = score
+
+    result = {
+        "loss": loss,
+        "accuracy": accuracy,
+        "recall": recall,
+        "precision": precision,
+        "f1-score": f1,
+        "top_k_accuracy": top_k_accuracy,
+    }
+    return result
 
 
 def plot_extended_metrics(
