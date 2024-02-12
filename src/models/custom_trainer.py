@@ -1,20 +1,20 @@
+import os
 import torch
+import joblib
 import torch.nn as nn
 from torchvision import models
-import os
-from .dataloader import CustomDataLoader
 from .base_trainer import BaseTrainer
-import joblib
 from config import paths
 
 
-# Dictionary of supported model names with their corresponding model functions
 supported_models = {
     "resnet18": models.resnet18,
     "resnet34": models.resnet34,
     "resnet50": models.resnet50,
     "resnet101": models.resnet101,
     "resnet152": models.resnet152,
+    "inceptionV1": models.googlenet,
+    "inceptionV3": models.inception_v3,
 }
 
 supported_weights = {
@@ -23,18 +23,20 @@ supported_weights = {
     "resnet50": models.ResNet50_Weights.IMAGENET1K_V2,
     "resnet101": models.ResNet101_Weights.IMAGENET1K_V2,
     "resnet152": models.ResNet152_Weights.IMAGENET1K_V2,
+    "inceptionV1": models.GoogLeNet_Weights.IMAGENET1K_V1,
+    "inceptionV3": models.Inception_V3_Weights.IMAGENET1K_V1,
 }
 
 
-class ResNetTrainer(BaseTrainer):
+class CustomTrainer(BaseTrainer):
     """
-    A trainer class for ResNet models.
+    A trainer class for custom models.
 
     This class inherits from BaseTrainer and is specialized for training various
-    ResNet models with custom configurations.
+    ResNet and Inception models with custom configurations.
 
     Attributes:
-        model (nn.Module): The ResNet model to be trained.
+        model (nn.Module): The custom model to be trained.
         train_loader (DataLoader): DataLoader for the training dataset.
         test_loader (DataLoader): DataLoader for the test dataset.
         validation_loader (DataLoader): DataLoader for the validation dataset.
@@ -46,18 +48,18 @@ class ResNetTrainer(BaseTrainer):
         test_loader,
         validation_loader,
         num_classes,
-        model_name="resnet18",
+        model_name,
         output_folder=paths.OUTPUTS_DIR,
     ):
         """
-        Initializes the ResNetTrainer with the specified model, data loaders, and number of classes.
+        Initializes the CustomTrainer with the specified model, data loaders, and number of classes.
 
         Args:
             train_loader (DataLoader): DataLoader for the training dataset.
             test_loader (DataLoader): DataLoader for the test dataset.
             validation_loader (DataLoader): DataLoader for the validation dataset.
             num_classes (int): Number of classes in the dataset.
-            model_name (str, optional): Name of the ResNet model to be used. Defaults to 'resnet18'.
+            model_name (str, optional): Name of the Custom model to be used.
         """
 
         if model_name not in supported_models:
@@ -117,28 +119,6 @@ class ResNetTrainer(BaseTrainer):
 
         model.load_state_dict(model_state)
 
-        trainer = ResNetTrainer(**params)
+        trainer = CustomTrainer(**params)
         trainer.model = model
         return trainer
-
-
-if __name__ == "__main__":
-    # Example usage of ResNetTrainer.
-    custom_data_loader = CustomDataLoader()
-    train_loader = custom_data_loader.train_loader
-    test_loader = custom_data_loader.test_loader
-    validation_loader = custom_data_loader.validation_loader
-
-    num_classes = len(train_loader.dataset.classes)
-    resnet_trainer = ResNetTrainer(
-        train_loader, test_loader, validation_loader, num_classes, model_name="resnet18"
-    )
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    resnet_trainer.set_device(device)
-    resnet_trainer.set_loss_function(torch.nn.CrossEntropyLoss())
-
-    output_folder = "output"
-    os.makedirs(output_folder, exist_ok=True)
-
-    resnet_trainer.train(num_epochs=10)

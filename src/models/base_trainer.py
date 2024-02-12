@@ -122,6 +122,8 @@ class BaseTrainer:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
+                if isinstance(outputs, tuple):
+                    outputs = outputs[0]
                 _, predicted = torch.max(outputs.data, 1)
                 loss = self.loss_function(outputs, labels)
                 loss.backward()

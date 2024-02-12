@@ -1,6 +1,7 @@
 import torch
 from models.dataloader import CustomDataLoader
-from models.resnet_trainer import ResNetTrainer
+from models.custom_trainer import CustomTrainer
+
 
 from utils import read_json_as_dict, set_seeds, get_model_parameters
 from config import paths
@@ -30,6 +31,7 @@ def main():
     loss_choice = config.get("loss_function")
     num_workers = config.get("num_workers")
     batch_size = params.get("batch_size")
+    image_size = params.get("image_size")
     loss_function = (
         torch.nn.CrossEntropyLoss()
         if loss_choice == "crossentropy"
@@ -39,7 +41,10 @@ def main():
     set_seeds(config["seed"])
 
     custom_data_loader = CustomDataLoader(
-        base_folder=paths.INPUTS_DIR, batch_size=batch_size, num_workers=num_workers
+        base_folder=paths.INPUTS_DIR,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        image_size=image_size,
     )
 
     logger.info(f"\nWorking on model: {model_name}")
@@ -52,7 +57,7 @@ def main():
 
     num_classes = len(train_loader.dataset.classes)
 
-    trainer = ResNetTrainer(
+    trainer = CustomTrainer(
         train_loader, test_loader, validation_loader, num_classes, model_name
     )
 
@@ -107,8 +112,6 @@ def main():
     )
 
     logger.info(f"Training and evaluation for model {model_name} completed.\n")
-
-    logger.info("All models have been processed.")
 
 
 if __name__ == "__main__":

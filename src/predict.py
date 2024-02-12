@@ -1,5 +1,4 @@
 import pandas as pd
-from models.resnet_trainer import ResNetTrainer
 from config import paths
 from score import (
     calculate_confusion_matrix,
@@ -7,6 +6,7 @@ from score import (
     plot_and_save_confusion_matrix,
     save_metrics_to_csv,
 )
+from models.custom_trainer import CustomTrainer
 from utils import TimeAndMemoryTracker
 from logger import get_logger
 
@@ -14,7 +14,8 @@ from logger import get_logger
 def predict():
     logger = get_logger(task_name="predict")
 
-    trainer = ResNetTrainer.load_model()
+    trainer = CustomTrainer.load_model()
+    logger.info(f"Loaded model {trainer.model_name}")
     test_loader = trainer.test_loader
 
     logger.info("Predicting on test data...")

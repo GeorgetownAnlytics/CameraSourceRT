@@ -3,8 +3,8 @@ import torch
 import pandas as pd
 from config import paths
 from models.dataloader import CustomDataLoader
-from models.resnet_trainer import ResNetTrainer
-from utils import read_json_as_dict, set_seeds
+from models.custom_trainer import CustomTrainer
+from utils import read_json_as_dict, set_seeds, get_model_parameters
 from score import (
     calculate_confusion_matrix,
     evaluate_metrics,
@@ -22,7 +22,6 @@ def main():
     num_epochs = config.get("num_epochs")
     loss_choice = config.get("loss_function")
     num_workers = config.get("num_workers")
-    batch_size = config.get("run_all_batch_size")
     loss_function = (
         torch.nn.CrossEntropyLoss()
         if loss_choice == "crossentropy"
@@ -35,11 +34,19 @@ def main():
     artifacts_folder = paths.RUN_ALL_ARTIFACTS_DIR
     model_names = config.get("run_all_model_names")
 
-    custom_data_loader = CustomDataLoader(
-        batch_size=batch_size, num_workers=num_workers
-    )
-
     for model_name in model_names:
+        params = get_model_parameters(
+            model_name=model_name,
+            hyperparameters_file_path=paths.HYPERPARAMETERS_FILE,
+            hyperparameter_tuning=config["hyperparameter_tuning"],
+        )
+
+        batch_size = params["batch_size"]
+        image_size = params["image_size"]
+
+        custom_data_loader = CustomDataLoader(
+            batch_size=batch_size, num_workers=num_workers, image_size=image_size
+        )
         print(f"\nWorking on model: {model_name}")
 
         model_predictions_folder = os.path.join(predictions_folder, model_name)
@@ -55,7 +62,7 @@ def main():
 
         num_classes = len(train_loader.dataset.classes)
 
-        trainer = ResNetTrainer(
+        trainer = CustomTrainer(
             train_loader,
             test_loader,
             validation_loader,
