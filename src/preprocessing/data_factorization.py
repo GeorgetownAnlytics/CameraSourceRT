@@ -16,10 +16,6 @@ src_data_dir = paths.RAW_DATA_DIR
 dest_data_dir = paths.INPUTS_DIR
 split_dir = paths.DATA_SPLIT_DIR
 
-# train_dir = paths.TRAIN_DIR
-# test_dir = paths.TEST_DIR
-# validation_dir = paths.VALIDATION_DIR
-
 Path(split_dir).mkdir(parents=True, exist_ok=True)
 
 # Split ratios for training, testing, and validation sets
@@ -32,14 +28,14 @@ split_file_lists = {"train": [], "test": [], "validation": []}
 
 
 # Function to create category subfolders in train, test, and validation directories
-def create_category_folders(base_dir, class_name, subfolder_name):
+def create_category_folders(base_dir, class_name):
     for folder_type in ["train", "test", "validation"]:
-        folder_path = os.path.join(base_dir, folder_type, class_name, subfolder_name)
+        folder_path = os.path.join(base_dir, folder_type, class_name)
         Path(folder_path).mkdir(parents=True, exist_ok=True)
 
 
 # Function to split data into train, test, and validation sets and copy the files
-def split_data(class_name, subfolder_name, images):
+def split_data(class_name, images):
     random.shuffle(images)
     train_end = int(len(images) * train_split)
     test_end = train_end + int(len(images) * test_split)
@@ -51,20 +47,18 @@ def split_data(class_name, subfolder_name, images):
     # Copy function
     def copy_images(image_list, target_dir, split_name):
         for image in tqdm(image_list, desc=f"Copying to {target_dir}"):
-            dest_path = os.path.join(
-                target_dir, class_name, subfolder_name, os.path.basename(image)
-            )
+            dest_path = os.path.join(target_dir, class_name, os.path.basename(image))
             shutil.copy(image, dest_path)
             # Add the image path relative to dest_data_dir to the split's file list
             relative_path = os.path.relpath(dest_path, dest_data_dir)
             split_file_lists[split_name].append(relative_path)
 
     # Copy images to train, test, and validation directories
-    print(f"Processing Training Set for {class_name}/{subfolder_name}")
+    print(f"Processing Training Set for {class_name}")
     copy_images(train_images, os.path.join(dest_data_dir, "train"), "train")
-    print(f"Processing Testing Set for {class_name}/{subfolder_name}")
+    print(f"Processing Testing Set for {class_name}")
     copy_images(test_images, os.path.join(dest_data_dir, "test"), "test")
-    print(f"Processing Validation Set for {class_name}/{subfolder_name}")
+    print(f"Processing Validation Set for {class_name}")
     copy_images(
         validation_images, os.path.join(dest_data_dir, "validation"), "validation"
     )
@@ -82,8 +76,8 @@ for class_folder in os.listdir(src_data_dir):
                     for f in os.listdir(subfolder_path)
                     if f.lower().endswith(".jpg")
                 ]
-                create_category_folders(dest_data_dir, class_folder, subfolder_name)
-                split_data(class_folder, subfolder_name, images)
+                create_category_folders(dest_data_dir, class_folder)
+                split_data(class_folder, images)
 
 # Write the split file lists to JSON files in the split directory
 for split_name, file_list in split_file_lists.items():
