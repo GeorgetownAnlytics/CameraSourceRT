@@ -148,3 +148,4 @@ output/*.pth
 **.pth
 .DS_Store
 raw_data/
+test.*
