@@ -14,6 +14,9 @@ from score import (
 
 from utils import TimeAndMemoryTracker
 from predict import create_prediction_df
+from logger import get_logger
+
+logger = get_logger(task_name="run_all")
 
 
 def main():
@@ -29,7 +32,7 @@ def main():
         if loss_choice == "crossentropy"
         else torch.nn.MultiMarginLoss()
     )
-    print("Setting seeds to:", config["seed"])
+    logger.info("Setting seeds to:", config["seed"])
     set_seeds(config["seed"])
 
     predictions_folder = paths.RUN_ALL_PREDICTIONS_DIR
@@ -52,7 +55,7 @@ def main():
             image_size=image_size,
             validation_size=validation_size,
         )
-        print(f"\nWorking on model: {model_name}")
+        logger.info(f"\nWorking on model: {model_name}")
 
         model_predictions_folder = os.path.join(predictions_folder, model_name)
         model_artifacts_folder = os.path.join(artifacts_folder, model_name)
@@ -81,36 +84,32 @@ def main():
         checkpoint_dir_path = os.path.join(model_artifacts_folder, "checkpoints")
         os.makedirs(checkpoint_dir_path, exist_ok=True)
 
-        print("Training model...")
-
+        logger.info("Training model...")
         metrics_history = trainer.train(
             num_epochs=num_epochs, checkpoint_dir_path=checkpoint_dir_path
         )
 
         predictor_path = os.path.join(model_artifacts_folder, "predictor")
 
-        print("Saving model...")
+        logger.info("Saving model...")
         trainer.save_model(predictor_path=predictor_path)
 
-        print("Saving metrics to csv...")
+        logger.info("Saving metrics to csv...")
         save_metrics_to_csv(
             metrics_history,
             output_folder=model_artifacts_folder,
             file_name="train_validation_metrics.csv",
         )
 
-        print("Predicting train and validation labels...")
+        logger.info("Predicting train labels...")
         train_labels, train_pred, _ = trainer.predict(train_loader)
-        validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
 
-        print("Saving confusion matrix...")
+        logger.info("Saving train confusion matrix...")
         train_cm = calculate_confusion_matrix(
             all_labels=train_labels, all_predictions=train_pred
         )
-        validation_cm = calculate_confusion_matrix(
-            all_labels=validiation_labels, all_predictions=validation_pred
-        )
 
+        logger.info("Saving train confusion matrix plot...")
         plot_and_save_confusion_matrix(
             cm=train_cm,
             phase="train",
@@ -119,13 +118,23 @@ def main():
             class_names=trainer.train_loader.dataset.classes,
         )
 
-        plot_and_save_confusion_matrix(
-            cm=validation_cm,
-            phase="validation",
-            model_name=model_name,
-            output_folder=model_artifacts_folder,
-            class_names=trainer.train_loader.dataset.classes,
-        )
+        if validation_loader:
+            logger.info("Predicting validation labels...")
+            validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
+
+            logger.info("Saving validation confusion matrix...")
+            validation_cm = calculate_confusion_matrix(
+                all_labels=validiation_labels, all_predictions=validation_pred
+            )
+
+            logger.info("Saving validation confusion matrix plot...")
+            plot_and_save_confusion_matrix(
+                cm=validation_cm,
+                phase="validation",
+                model_name=model_name,
+                output_folder=model_artifacts_folder,
+                class_names=trainer.train_loader.dataset.classes,
+            )
 
         labels, predictions, logits = trainer.predict(test_loader)
 
@@ -146,14 +155,14 @@ def main():
                 "Test Precision": [test_metrics["precision"]],
             }
         )
-        print("Saving test metrics to csv...")
+        logger.info("Saving test metrics to csv...")
         save_metrics_to_csv(
             test_metrics_df,
             output_folder=model_predictions_folder,
             file_name="test_metrics.csv",
         )
 
-        print("Saving confusion matrix...")
+        logger.info("Saving confusion matrix...")
         test_cm = calculate_confusion_matrix(
             all_labels=labels, all_predictions=predictions
         )
@@ -165,13 +174,13 @@ def main():
             class_names=trainer.train_loader.dataset.classes,
         )
 
-        print(
+        logger.info(
             f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}"
         )
 
-        print(f"Training and evaluation for model {model_name} completed.\n")
+        logger.info(f"Training and evaluation for model {model_name} completed.\n")
 
-    print("All models have been processed.")
+    logger.info("All models have been processed.")
 
 
 if __name__ == "__main__":

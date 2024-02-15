@@ -83,18 +83,15 @@ def main():
         file_name="train_validation_metrics.csv",
     )
 
-    logger.info("Predicting train and validation labels...")
+    logger.info("Predicting train labels...")
     train_labels, train_pred, _ = trainer.predict(train_loader)
-    validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
 
-    logger.info("Saving confusion matrix...")
+    logger.info("Saving train confusion matrix...")
     train_cm = calculate_confusion_matrix(
         all_labels=train_labels, all_predictions=train_pred
     )
-    validation_cm = calculate_confusion_matrix(
-        all_labels=validiation_labels, all_predictions=validation_pred
-    )
 
+    logger.info("Saving train confusion matrix plot...")
     plot_and_save_confusion_matrix(
         cm=train_cm,
         phase="train",
@@ -103,13 +100,23 @@ def main():
         class_names=trainer.train_loader.dataset.classes,
     )
 
-    plot_and_save_confusion_matrix(
-        cm=validation_cm,
-        phase="validation",
-        model_name=model_name,
-        output_folder=paths.MODEL_ARTIFACTS_DIR,
-        class_names=trainer.train_loader.dataset.classes,
-    )
+    if validation_loader:
+        logger.info("Predicting validation labels...")
+        validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
+
+        logger.info("Saving validation confusion matrix...")
+        validation_cm = calculate_confusion_matrix(
+            all_labels=validiation_labels, all_predictions=validation_pred
+        )
+
+        logger.info("Saving validation confusion matrix plot...")
+        plot_and_save_confusion_matrix(
+            cm=validation_cm,
+            phase="validation",
+            model_name=model_name,
+            output_folder=paths.MODEL_ARTIFACTS_DIR,
+            class_names=trainer.train_loader.dataset.classes,
+        )
 
     logger.info(
         f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}"

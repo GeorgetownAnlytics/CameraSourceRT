@@ -53,9 +53,14 @@ class CustomDataLoader:
         )
 
     def create_data_loaders(self):
+
         train_folder = os.path.join(self.base_folder, "train")
         test_folder = os.path.join(self.base_folder, "test")
         validation_folder = os.path.join(self.base_folder, "validation")
+
+        validation_exists = os.path.exists(
+            validation_folder
+        ) and contains_subdirectories(validation_folder)
 
         self.num_classes = len(
             [i for i in os.listdir(train_folder) if os.path.isdir(i)]
@@ -63,15 +68,13 @@ class CustomDataLoader:
 
         image_paths, image_labels = get_image_paths_and_labels(train_folder)
 
-        if self.validation_size > 0 and (
-            not os.path.exists(validation_folder)
-            or not contains_subdirectories(validation_folder)
-        ):
+        if self.validation_size > 0 and not validation_exists:
             split_and_move_validation_files(
                 image_paths=image_paths,
                 image_labels=image_labels,
                 validation_size=self.validation_size,
             )
+            validation_exists = True
 
         train_dataset = ImageFolder(root=train_folder, transform=self.transform)
         test_dataset = ImageFolder(root=test_folder, transform=self.transform)
@@ -92,7 +95,7 @@ class CustomDataLoader:
 
         validation_loader = None
 
-        if self.validation_size > 0:
+        if validation_exists:
             validation_dataset = ImageFolder(
                 root=validation_folder, transform=self.transform
             )

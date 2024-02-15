@@ -104,12 +104,18 @@ class BaseTrainer:
             "Train Recall": [],
             "Train Precision": [],
             "Train F1": [],
-            "Validation Loss": [],
-            "Validation Accuracy": [],
-            "Validation Recall": [],
-            "Validation Precision": [],
-            "Validation F1": [],
         }
+
+        if self.validation_loader:
+            metrics_history.update(
+                {
+                    "Validation Loss": [],
+                    "Validation Accuracy": [],
+                    "Validation Recall": [],
+                    "Validation Precision": [],
+                    "Validation F1": [],
+                }
+            )
 
         best_val_accuracy = 0.0  # Initialize best validation accuracy
         for epoch in range(num_epochs):
@@ -147,29 +153,22 @@ class BaseTrainer:
             metrics_history["Train Precision"].append(train_metrics["precision"])
             metrics_history["Train Recall"].append(train_metrics["recall"])
 
-            val_labels, val_pred, val_logits = self.predict(self.validation_loader)
+            if self.validation_loader:
+                val_labels, val_pred, val_logits = self.predict(self.validation_loader)
+                val_metrics = evaluate_metrics(
+                    val_labels, val_pred, val_logits, self.loss_function, top_k=[5]
+                )
+                # Checkpointing
+                if val_metrics["accuracy"] > best_val_accuracy:
+                    best_val_accuracy = val_metrics["accuracy"]
+                    self._save_checkpoint(epoch, checkpoint_dir_path)
 
-            val_metrics = evaluate_metrics(
-                val_labels, val_pred, val_logits, self.loss_function, top_k=[5]
-            )
+                metrics_history["Validation Loss"].append(val_metrics["loss"])
+                metrics_history["Validation Accuracy"].append(val_metrics["accuracy"])
+                metrics_history["Validation F1"].append(val_metrics["f1-score"])
 
-            # Checkpointing
-            if val_metrics["accuracy"] > best_val_accuracy:
-                best_val_accuracy = val_metrics["accuracy"]
-                self._save_checkpoint(epoch, checkpoint_dir_path)
-
-            metrics_history["Validation Loss"].append(val_metrics["loss"])
-            metrics_history["Validation Accuracy"].append(val_metrics["accuracy"])
-            metrics_history["Validation F1"].append(val_metrics["f1-score"])
-
-            metrics_history["Validation Precision"].append(val_metrics["precision"])
-            metrics_history["Validation Recall"].append(val_metrics["recall"])
-
-            print(
-                f"Epoch {epoch + 1}/{num_epochs} Completed: Train Loss: {train_metrics['loss']},\
-                Train Accuracy: {train_metrics['accuracy']}, Train F1: {train_metrics['f1-score']}, Validation Loss: {val_metrics['loss']},\
-                    Validation Accuracy: {val_metrics['accuracy']}, Validation F1: {val_metrics['f1-score']}"
-            )
+                metrics_history["Validation Precision"].append(val_metrics["precision"])
+                metrics_history["Validation Recall"].append(val_metrics["recall"])
             scheduler.step()
 
         train_progress_bar.close()
