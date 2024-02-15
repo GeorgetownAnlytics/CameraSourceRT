@@ -13,6 +13,7 @@ from score import (
 )
 
 from utils import TimeAndMemoryTracker
+from predict import create_prediction_df
 
 
 def main():
@@ -22,6 +23,7 @@ def main():
     num_epochs = config.get("num_epochs")
     loss_choice = config.get("loss_function")
     num_workers = config.get("num_workers")
+    validation_size = config.get("validation_size")
     loss_function = (
         torch.nn.CrossEntropyLoss()
         if loss_choice == "crossentropy"
@@ -45,7 +47,10 @@ def main():
         image_size = params["image_size"]
 
         custom_data_loader = CustomDataLoader(
-            batch_size=batch_size, num_workers=num_workers, image_size=image_size
+            batch_size=batch_size,
+            num_workers=num_workers,
+            image_size=image_size,
+            validation_size=validation_size,
         )
         print(f"\nWorking on model: {model_name}")
 

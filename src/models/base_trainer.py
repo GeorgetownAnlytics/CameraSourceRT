@@ -10,6 +10,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
 from score import evaluate_metrics
 from torch.nn import CrossEntropyLoss, MultiMarginLoss
+from torch.nn.functional import softmax
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -218,11 +219,11 @@ class BaseTrainer:
             data_loader (DataLoader): The input data.
 
         Returns:
-            Tuple[np.ndarray, np.ndarray, np.ndarray]: (Truth labels, Predicted class labels, Logits).
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: (Truth labels, Predicted class labels, Probabilities).
         """
         self.model.eval()
         with torch.no_grad():
-            all_labels, all_predicted, all_logits = (
+            all_labels, all_predicted, all_probs = (
                 np.array([]),
                 np.array([]),
                 np.array([]),
@@ -230,15 +231,16 @@ class BaseTrainer:
             for inputs, labels in data_loader:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)
+                probs = softmax(outputs, dim=1)
                 _, predicted = torch.max(outputs.data, 1)
 
                 # Convert tensors to numpy arrays before appending
                 all_predicted = np.append(all_predicted, predicted.cpu().numpy())
                 all_labels = np.append(all_labels, labels.cpu().numpy())
-                all_logits = (
-                    np.concatenate((all_logits, outputs.cpu().numpy()), axis=0)
-                    if all_logits.size
-                    else outputs.cpu().numpy()
+                all_probs = (
+                    np.concatenate((all_probs, probs.cpu().numpy()), axis=0)
+                    if all_probs.size
+                    else probs.cpu().numpy()
                 )
 
-        return all_labels, all_predicted, all_logits
+        return all_labels, all_predicted, all_probs

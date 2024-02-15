@@ -1,17 +1,18 @@
 import torch
 from models.dataloader import CustomDataLoader
 from models.custom_trainer import CustomTrainer
-
-
-from utils import read_json_as_dict, set_seeds, get_model_parameters
+from utils import (
+    read_json_as_dict,
+    set_seeds,
+    get_model_parameters,
+    TimeAndMemoryTracker,
+)
 from config import paths
 from score import (
     save_metrics_to_csv,
     plot_and_save_confusion_matrix,
     calculate_confusion_matrix,
 )
-
-from utils import TimeAndMemoryTracker
 from logger import get_logger
 
 
@@ -30,8 +31,10 @@ def main():
     num_epochs = config.get("num_epochs")
     loss_choice = config.get("loss_function")
     num_workers = config.get("num_workers")
+    validation_size = config.get("validation_size")
     batch_size = params.get("batch_size")
     image_size = params.get("image_size")
+
     loss_function = (
         torch.nn.CrossEntropyLoss()
         if loss_choice == "crossentropy"
@@ -45,6 +48,7 @@ def main():
         batch_size=batch_size,
         num_workers=num_workers,
         image_size=image_size,
+        validation_size=validation_size,
     )
 
     logger.info(f"\nWorking on model: {model_name}")

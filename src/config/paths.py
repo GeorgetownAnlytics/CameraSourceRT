@@ -32,6 +32,9 @@ OUTPUTS_DIR = os.path.join(MODEL_INPUTS_OUTPUTS_DIR, "outputs")
 
 PREDICTIONS_DIR = os.path.join(OUTPUTS_DIR, "predictions")
 
+PREDICTIONS_FILE = os.path.join(PREDICTIONS_DIR, "predictions.csv")
+
+
 RUN_ALL_PREDICTIONS_DIR = os.path.join(PREDICTIONS_DIR, "run_all_predictions")
 
 ERRORS_DIR = os.path.join(OUTPUTS_DIR, "errors")

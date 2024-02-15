@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from config import paths
 from score import (
@@ -9,6 +10,20 @@ from score import (
 from models.custom_trainer import CustomTrainer
 from utils import TimeAndMemoryTracker
 from logger import get_logger
+from pathlib import Path
+
+
+def create_prediction_df(
+    ids: np.ndarray, logits: np.ndarray, predictions: np.ndarray, class_to_idx: dict
+) -> pd.DataFrame:
+    idx_to_class = {k: v for v, k in class_to_idx.items()}
+    encoded_targets = list(range(len(class_to_idx)))
+    prediction_df = pd.DataFrame({"id": ids})
+    prediction_df[encoded_targets] = logits
+    prediction_df["prediction"] = predictions
+    prediction_df["prediction"] = prediction_df["prediction"].map(idx_to_class)
+    prediction_df.rename(columns=idx_to_class, inplace=True)
+    return prediction_df
 
 
 def predict():
@@ -22,6 +37,17 @@ def predict():
     with TimeAndMemoryTracker() as _:
         labels, predictions, logits = trainer.predict(test_loader)
 
+    ids = [Path(i[0]).name for i in test_loader.dataset.imgs]
+    class_to_idx = test_loader.dataset.class_to_idx
+
+    prediction_df = create_prediction_df(
+        ids=ids, logits=logits, predictions=predictions, class_to_idx=class_to_idx
+    )
+
+    logger.info("Saving predictions...")
+    prediction_df.to_csv(paths.PREDICTIONS_FILE, index=False)
+
+    logger.info("Evaluating metrics...")
     test_metrics = evaluate_metrics(
         labels=labels,
         predictions=predictions,

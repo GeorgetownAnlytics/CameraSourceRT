@@ -9,6 +9,11 @@ from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # Import tqdm for progress bars
 from config import paths
+from preprocessing.train_validation_split import (
+    split_and_move_validation_files,
+    get_image_paths_and_labels,
+)
+from utils import contains_subdirectories
 
 # Configure logging
 logging.basicConfig(
@@ -29,11 +34,13 @@ class CustomDataLoader:
         batch_size=256,
         num_workers=6,
         image_size=(224, 224),
+        validation_size=0.0,
     ):
         self.base_folder = base_folder
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.image_size = tuple(image_size)
+        self.validation_size = validation_size
         self.transform = transforms.Compose(
             [
                 transforms.Resize(self.image_size),
@@ -41,24 +48,33 @@ class CustomDataLoader:
                 transforms.Normalize(mean=self.MEAN, std=self.STD_DEV),
             ]
         )
-        (
-            self.train_loader,
-            self.test_loader,
-            self.validation_loader,
-        ) = self.create_data_loaders()
+        (self.train_loader, self.test_loader, self.validation_loader) = (
+            self.create_data_loaders()
+        )
 
     def create_data_loaders(self):
         train_folder = os.path.join(self.base_folder, "train")
         test_folder = os.path.join(self.base_folder, "test")
         validation_folder = os.path.join(self.base_folder, "validation")
 
-        self.num_classes = len(os.listdir(train_folder))
+        self.num_classes = len(
+            [i for i in os.listdir(train_folder) if os.path.isdir(i)]
+        )
+
+        image_paths, image_labels = get_image_paths_and_labels(train_folder)
+
+        if self.validation_size > 0 and (
+            not os.path.exists(validation_folder)
+            or not contains_subdirectories(validation_folder)
+        ):
+            split_and_move_validation_files(
+                image_paths=image_paths,
+                image_labels=image_labels,
+                validation_size=self.validation_size,
+            )
 
         train_dataset = ImageFolder(root=train_folder, transform=self.transform)
         test_dataset = ImageFolder(root=test_folder, transform=self.transform)
-        validation_dataset = ImageFolder(
-            root=validation_folder, transform=self.transform
-        )
 
         train_loader = DataLoader(
             train_dataset,
@@ -73,12 +89,20 @@ class CustomDataLoader:
             shuffle=False,
             num_workers=self.num_workers,
         )
-        validation_loader = DataLoader(
-            validation_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-        )
+
+        validation_loader = None
+
+        if self.validation_size > 0:
+            validation_dataset = ImageFolder(
+                root=validation_folder, transform=self.transform
+            )
+
+            validation_loader = DataLoader(
+                validation_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=self.num_workers,
+            )
 
         return train_loader, test_loader, validation_loader
 
@@ -112,8 +136,8 @@ class CustomDataLoader:
 
     def process_datasets(self):
         for dataset_name, loader in zip(
-            ["train", "test", "validation"],
-            [self.train_loader, self.test_loader, self.validation_loader],
+            ["train", "test"],
+            [self.train_loader, self.test_loader],
         ):
             # Wrap the loader with tqdm for progress tracking
             for images, labels in tqdm(loader, desc=f"Processing {dataset_name} Data"):
