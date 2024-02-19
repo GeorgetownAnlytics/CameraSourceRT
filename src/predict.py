@@ -34,7 +34,7 @@ def predict():
     test_loader = trainer.test_loader
 
     logger.info("Predicting on test data...")
-    with TimeAndMemoryTracker() as _:
+    with TimeAndMemoryTracker(logger) as _:
         labels, predictions, logits = trainer.predict(test_loader)
 
     ids = [Path(i[0]).name for i in test_loader.dataset.imgs]

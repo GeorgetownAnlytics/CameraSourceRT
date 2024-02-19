@@ -138,5 +138,65 @@
                 299
             ]
         }
+    ],
+    "mnasnet0_5": [
+        {
+            "name": "batch_size",
+            "short_desc": "The number of samples per batch",
+            "type": "int",
+            "search_type": "uniform",
+            "default": 256,
+            "range_low": 32,
+            "range_high": 512
+        },
+        {
+            "name": "image_size",
+            "short_desc": "The size of image used in preprocessing step of resizing images",
+            "type": "list",
+            "default": [
+                224,
+                224
+            ]
+        }
+    ],
+    "mnasnet1_0": [
+        {
+            "name": "batch_size",
+            "short_desc": "The number of samples per batch",
+            "type": "int",
+            "search_type": "uniform",
+            "default": 256,
+            "range_low": 32,
+            "range_high": 512
+        },
+        {
+            "name": "image_size",
+            "short_desc": "The size of image used in preprocessing step of resizing images",
+            "type": "list",
+            "default": [
+                224,
+                224
+            ]
+        }
+    ],
+    "mnasnet1_3": [
+        {
+            "name": "batch_size",
+            "short_desc": "The number of samples per batch",
+            "type": "int",
+            "search_type": "uniform",
+            "default": 256,
+            "range_low": 32,
+            "range_high": 512
+        },
+        {
+            "name": "image_size",
+            "short_desc": "The size of image used in preprocessing step of resizing images",
+            "type": "list",
+            "default": [
+                224,
+                224
+            ]
+        }
     ]
 }

@@ -15,6 +15,9 @@ supported_models = {
     "resnet152": models.resnet152,
     "inceptionV1": models.googlenet,
     "inceptionV3": models.inception_v3,
+    "mnasnet0_5": models.mnasnet0_5,
+    "mnasnet1_0": models.mnasnet1_0,
+    "mnasnet1_3": models.mnasnet1_3,
 }
 
 supported_weights = {
@@ -25,6 +28,9 @@ supported_weights = {
     "resnet152": models.ResNet152_Weights.IMAGENET1K_V2,
     "inceptionV1": models.GoogLeNet_Weights.IMAGENET1K_V1,
     "inceptionV3": models.Inception_V3_Weights.IMAGENET1K_V1,
+    "mnasnet0_5": models.MNASNet0_5_Weights.IMAGENET1K_V1,
+    "mnasnet1_0": models.MNASNet1_0_Weights.IMAGENET1K_V1,
+    "mnasnet1_3": models.MNASNet1_3_Weights.IMAGENET1K_V1,
 }
 
 
@@ -76,8 +82,14 @@ class CustomTrainer(BaseTrainer):
         model_weights = supported_weights[model_name]
         model = model_fn(weights=model_weights)
 
-        in_features = model.fc.in_features
-        model.fc = nn.Linear(in_features, num_classes)
+        if self.model_name.startswith("mnasnet"):
+            model.classifier = nn.Sequential(
+                nn.Dropout(p=0.2, inplace=False),
+                nn.Linear(model.classifier[1].in_features, num_classes),
+            )
+        else:
+            in_features = model.fc.in_features
+            model.fc = nn.Linear(in_features, num_classes)
 
         super().__init__(
             model,

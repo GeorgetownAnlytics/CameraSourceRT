@@ -70,7 +70,7 @@ def main():
     trainer.set_loss_function(loss_function)
 
     logger.info("Training model...")
-    with TimeAndMemoryTracker() as _:
+    with TimeAndMemoryTracker(logger) as _:
         metrics_history = trainer.train(num_epochs=num_epochs)
 
     logger.info("Saving model...")

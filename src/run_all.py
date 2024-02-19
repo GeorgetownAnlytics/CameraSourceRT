@@ -13,7 +13,6 @@ from score import (
 )
 
 from utils import TimeAndMemoryTracker
-from predict import create_prediction_df
 from logger import get_logger
 
 logger = get_logger(task_name="run_all")
@@ -184,5 +183,5 @@ def main():
 
 
 if __name__ == "__main__":
-    with TimeAndMemoryTracker() as _:
+    with TimeAndMemoryTracker(logger) as _:
         main()

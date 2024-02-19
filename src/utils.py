@@ -1,13 +1,13 @@
 import os
 import json
 import random
-import torch
+import torch as T
 import time
 import shutil
 import tracemalloc
 import numpy as np
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 from config import paths
 
 
@@ -70,9 +70,9 @@ def set_seeds(seed_value: int) -> None:
         os.environ["PYTHONHASHSEED"] = str(seed_value)
         random.seed(seed_value)
         np.random.seed(seed_value)
-        torch.manual_seed(seed_value)
-        torch.cuda.manual_seed(seed_value)
-        torch.cuda.manual_seed_all(seed_value)
+        T.manual_seed(seed_value)
+        T.cuda.manual_seed(seed_value)
+        T.cuda.manual_seed_all(seed_value)
     else:
         raise ValueError(f"Invalid seed value: {seed_value}. Cannot set seeds.")
 
@@ -189,11 +189,26 @@ def list_paths(root_dir):
     return paths
 
 
+def get_peak_memory_usage() -> Union[float, None]:
+    """
+    Returns the peak memory usage by current cuda device if available
+    """
+    if not T.cuda.is_available():
+        return None
+
+    current_device = T.cuda.current_device()
+    peak_memory = T.cuda.max_memory_allocated(current_device)
+    return peak_memory / 1e6
+
+
 class TimeAndMemoryTracker(object):
     """
     This class serves as a context manager to track time and
     memory allocated by code executed inside it.
     """
+
+    def __init__(self, logger):
+        self.logger = logger
 
     def __enter__(self):
         tracemalloc.start()
@@ -204,7 +219,13 @@ class TimeAndMemoryTracker(object):
         self.end_time = time.time()
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
+
+        cuda_peak = get_peak_memory_usage()
+
         elapsed_time = self.end_time - self.start_time
 
-        print(f"Execution time: {elapsed_time:.2f} seconds")
-        print(f"Memory allocated (peak): {peak / 1024**2:.2f} MB")
+        self.logger.info(f"Execution time: {elapsed_time:.2f} seconds")
+        self.logger.info(f"Memory allocated (peak): {peak / 1024**2:.2f} MB")
+
+        if cuda_peak:
+            self.logger.info(f"CUDA Memory allocated (peak): {cuda_peak:.2f} MB")

@@ -1,10 +1,11 @@
 {
-    "model_name": "inceptionV3",
+    "model_name": "mnasnet1_0",
     "run_all_model_names": [
         "resnet18",
-        "resnet34",
         "inceptionV1",
-        "inceptionV3"
+        "mnasnet0_5",
+        "mnasnet1_0",
+        "mnasnet1_3"
     ],
     "seed": 42,
     "num_epochs": 2,
