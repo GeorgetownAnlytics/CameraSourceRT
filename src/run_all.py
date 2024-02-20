@@ -135,23 +135,28 @@ def main():
                 class_names=trainer.train_loader.dataset.classes,
             )
 
-        labels, predictions, logits = trainer.predict(test_loader)
+        labels, predictions, probs = trainer.predict(test_loader)
 
         test_metrics = evaluate_metrics(
             labels=labels,
             predictions=predictions,
-            logits=logits,
+            probabilities=probs,
             loss_function=trainer.loss_function,
             top_k=[5],
+            n_classes=trainer.num_classes,
         )
 
         test_metrics_df = pd.DataFrame(
             {
-                "Test Loss": [test_metrics["loss"]],
-                "Test Accuracy": [test_metrics["accuracy"]],
-                "Test F1": [test_metrics["f1-score"]],
-                "Test Recall": [test_metrics["recall"]],
-                "Test Precision": [test_metrics["precision"]],
+                "test loss": [test_metrics["loss"]],
+                "test accuracy": [test_metrics["accuracy"]],
+                "test macro_f1": [test_metrics["macro_f1"]],
+                "test weighted_f1": [test_metrics["weighted_f1"]],
+                "test macro_recall": [test_metrics["macro_recall"]],
+                "test weighted_recall": [test_metrics["weighted_recall"]],
+                "test macro_precision": [test_metrics["macro_precision"]],
+                "test weighted_precision": [test_metrics["weighted_precision"]],
+                "test top_k_accuracy": [test_metrics["top_k_accuracy"]],
             }
         )
         logger.info("Saving test metrics to csv...")
@@ -174,7 +179,7 @@ def main():
         )
 
         logger.info(
-            f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}"
+            f"Training Accuracy (Last Epoch): {metrics_history['train accuracy'][-1]}"
         )
 
         logger.info(f"Training and evaluation for model {model_name} completed.\n")

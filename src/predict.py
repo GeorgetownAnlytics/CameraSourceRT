@@ -14,12 +14,12 @@ from pathlib import Path
 
 
 def create_prediction_df(
-    ids: np.ndarray, logits: np.ndarray, predictions: np.ndarray, class_to_idx: dict
+    ids: np.ndarray, probs: np.ndarray, predictions: np.ndarray, class_to_idx: dict
 ) -> pd.DataFrame:
     idx_to_class = {k: v for v, k in class_to_idx.items()}
     encoded_targets = list(range(len(class_to_idx)))
     prediction_df = pd.DataFrame({"id": ids})
-    prediction_df[encoded_targets] = logits
+    prediction_df[encoded_targets] = probs
     prediction_df["prediction"] = predictions
     prediction_df["prediction"] = prediction_df["prediction"].map(idx_to_class)
     prediction_df.rename(columns=idx_to_class, inplace=True)
@@ -35,13 +35,13 @@ def predict():
 
     logger.info("Predicting on test data...")
     with TimeAndMemoryTracker(logger) as _:
-        labels, predictions, logits = trainer.predict(test_loader)
+        labels, predictions, probs = trainer.predict(test_loader)
 
     ids = [Path(i[0]).name for i in test_loader.dataset.imgs]
     class_to_idx = test_loader.dataset.class_to_idx
 
     prediction_df = create_prediction_df(
-        ids=ids, logits=logits, predictions=predictions, class_to_idx=class_to_idx
+        ids=ids, probs=probs, predictions=predictions, class_to_idx=class_to_idx
     )
 
     logger.info("Saving predictions...")
@@ -51,18 +51,23 @@ def predict():
     test_metrics = evaluate_metrics(
         labels=labels,
         predictions=predictions,
-        logits=logits,
+        probabilities=probs,
         loss_function=trainer.loss_function,
         top_k=[5],
+        n_classes=trainer.num_classes,
     )
 
     test_metrics_df = pd.DataFrame(
         {
-            "Test Loss": [test_metrics["loss"]],
-            "Test Accuracy": [test_metrics["accuracy"]],
-            "Test F1": [test_metrics["f1-score"]],
-            "Test Recall": [test_metrics["recall"]],
-            "Test Precision": [test_metrics["precision"]],
+            "test loss": [test_metrics["loss"]],
+            "test accuracy": [test_metrics["accuracy"]],
+            "test macro_f1": [test_metrics["macro_f1"]],
+            "test weighted_f1": [test_metrics["weighted_f1"]],
+            "test macro_recall": [test_metrics["macro_recall"]],
+            "test weighted_recall": [test_metrics["weighted_recall"]],
+            "test macro_precision": [test_metrics["macro_precision"]],
+            "test weighted_precision": [test_metrics["weighted_precision"]],
+            "test top_k_accuracy": [test_metrics["top_k_accuracy"]],
         }
     )
     logger.info("Saving metrics to csv...")
@@ -83,7 +88,7 @@ def predict():
     )
 
     logger.info(
-        f"Test - After Training: Loss: {test_metrics['loss']}, Accuracy: {test_metrics['accuracy']}, F1 Score: {test_metrics['f1-score']}"
+        f"Test - After Training: Loss: {test_metrics['loss']}, Accuracy: {test_metrics['accuracy']}, Macro F1 Score: {test_metrics['macro_f1']}"
     )
 
 

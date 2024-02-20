@@ -119,7 +119,7 @@ def main():
         )
 
     logger.info(
-        f"Training Accuracy (Last Epoch): {metrics_history['Train Accuracy'][-1]}"
+        f"Training Accuracy (Last Epoch): {metrics_history['train accuracy'][-1]}"
     )
 
     logger.info(f"Training and evaluation for model {model_name} completed.\n")

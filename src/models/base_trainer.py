@@ -44,6 +44,8 @@ class BaseTrainer:
         else:
             self.class_names = [str(i) for i in range(len(train_loader.dataset))]
 
+        self.num_classes = len(self.class_names)
+
     def set_device(self, device: str) -> None:
         """
         Sets the device used for training.
@@ -68,6 +70,38 @@ class BaseTrainer:
         Returns: None
         """
         self.loss_function = loss_function
+
+    def create_metrics_history_dict(self, phase: str):
+        metrics_history = {
+            "epoch": [],
+            f"{phase} loss": [],
+            f"{phase} accuracy": [],
+            f"{phase} macro_recall": [],
+            f"{phase} macro_precision": [],
+            f"{phase} macro_f1": [],
+            f"{phase} weighted_recall": [],
+            f"{phase} weighted_precision": [],
+            f"{phase} weighted_f1": [],
+            f"{phase} top_k_accuracy": [],
+            f"{phase} mean_average_precision": [],
+        }
+        return metrics_history
+
+    def update_metrics_history_dict(
+        self,
+        phase: str,
+        metrics_history: dict[str, list],
+        score_dict: dict,
+        epoch_num: int = None,
+    ):
+        if epoch_num:
+            metrics_history["epoch"].append(epoch_num)
+        for key in metrics_history.keys():
+            if key.startswith(phase):
+                score_key = key.removeprefix(f"{phase} ")
+                metrics_history[key].append(score_dict[score_key])
+
+        return metrics_history
 
     def train(
         self, num_epochs: int = 40, checkpoint_dir_path: str = paths.CHECKPOINTS_DIR
@@ -97,25 +131,10 @@ class BaseTrainer:
         )
 
         total_batches = len(self.train_loader)
-        metrics_history = {
-            "Epoch": [],
-            "Train Loss": [],
-            "Train Accuracy": [],
-            "Train Recall": [],
-            "Train Precision": [],
-            "Train F1": [],
-        }
+        metrics_history = self.create_metrics_history_dict(phase="train")
 
         if self.validation_loader:
-            metrics_history.update(
-                {
-                    "Validation Loss": [],
-                    "Validation Accuracy": [],
-                    "Validation Recall": [],
-                    "Validation Precision": [],
-                    "Validation F1": [],
-                }
-            )
+            metrics_history.update(self.create_metrics_history_dict(phase="validation"))
 
         best_val_accuracy = 0.0  # Initialize best validation accuracy
         for epoch in range(num_epochs):
@@ -131,6 +150,7 @@ class BaseTrainer:
                 outputs = self.model(inputs)
                 if isinstance(outputs, tuple):
                     outputs = outputs[0]
+                probs = softmax(outputs, dim=1)
                 _, predicted = torch.max(outputs.data, 1)
                 loss = self.loss_function(outputs, labels)
                 loss.backward()
@@ -138,37 +158,43 @@ class BaseTrainer:
                 train_metrics = evaluate_metrics(
                     labels=labels.cpu().numpy(),
                     predictions=predicted.cpu().numpy(),
-                    logits=outputs.data.cpu().numpy(),
+                    probabilities=probs.data.cpu().numpy(),
                     loss_function=self.loss_function,
                     top_k=[5],
+                    n_classes=self.num_classes,
                 )
                 optimizer.step()
                 running_loss += loss.item()
                 train_progress_bar.update(1)
 
-            metrics_history["Epoch"].append(epoch + 1)
-            metrics_history["Train Loss"].append(train_metrics["loss"])
-            metrics_history["Train Accuracy"].append(train_metrics["accuracy"])
-            metrics_history["Train F1"].append(train_metrics["f1-score"])
-            metrics_history["Train Precision"].append(train_metrics["precision"])
-            metrics_history["Train Recall"].append(train_metrics["recall"])
+            metrics_history = self.update_metrics_history_dict(
+                phase="train",
+                metrics_history=metrics_history,
+                score_dict=train_metrics,
+                epoch_num=epoch + 1,
+            )
 
             if self.validation_loader:
-                val_labels, val_pred, val_logits = self.predict(self.validation_loader)
+                val_labels, val_pred, val_prob = self.predict(self.validation_loader)
                 val_metrics = evaluate_metrics(
-                    val_labels, val_pred, val_logits, self.loss_function, top_k=[5]
+                    val_labels,
+                    val_pred,
+                    val_prob,
+                    self.loss_function,
+                    top_k=[5],
+                    n_classes=self.num_classes,
                 )
                 # Checkpointing
                 if val_metrics["accuracy"] > best_val_accuracy:
                     best_val_accuracy = val_metrics["accuracy"]
                     self._save_checkpoint(epoch, checkpoint_dir_path)
 
-                metrics_history["Validation Loss"].append(val_metrics["loss"])
-                metrics_history["Validation Accuracy"].append(val_metrics["accuracy"])
-                metrics_history["Validation F1"].append(val_metrics["f1-score"])
+                metrics_history = self.update_metrics_history_dict(
+                    phase="validation",
+                    metrics_history=metrics_history,
+                    score_dict=val_metrics,
+                )
 
-                metrics_history["Validation Precision"].append(val_metrics["precision"])
-                metrics_history["Validation Recall"].append(val_metrics["recall"])
             scheduler.step()
 
         train_progress_bar.close()

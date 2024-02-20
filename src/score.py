@@ -16,6 +16,7 @@ from sklearn.metrics import (
     recall_score,
     precision_score,
     f1_score,
+    average_precision_score,
 )
 from sklearn.preprocessing import label_binarize
 from typing import Dict, List, Union, Tuple
@@ -170,47 +171,114 @@ def plot_metrics(metrics_history, output_folder):
     plt.close()
 
 
+def mean_average_precision_score(
+    labels: np.ndarray, predicted_probabilities: np.ndarray, n_classes: int
+) -> float:
+    """
+    Calculate the Mean Average Precision (mAP) across all classes for a multi-class classification task.
+
+    This function computes the Average Precision (AP) for each class by considering the predicted probabilities
+    and comparing them with the true labels. The AP scores are then averaged to obtain the mAP, which provides
+    a single metric to evaluate the performance of a classifier across all classes, especially useful in
+    imbalanced datasets where class distribution is uneven.
+
+    Args:
+    - labels (np.ndarray): A 1D numpy array of shape (n_samples,) containing the integer-encoded true labels
+      for each sample. Each element in this array should be an integer representing the class label.
+    - predicted_probabilities (np.ndarray): A 2D numpy array of shape (n_samples, n_classes) containing the
+      predicted probabilities for each class for each sample. Each row in this array should sum to 1, representing
+      the probability distribution across all classes for a given sample.
+    - n_classes (int): The total number of unique classes in the dataset. This is used to ensure the correct
+      binarization of the labels array into a one-hot encoded format.
+
+    Returns:
+    - mAP (float): The mean of the average precision scores across all classes. A higher mAP value indicates
+      better overall performance of the classifier across all classes, taking into account both precision and
+      recall for each class.
+    """
+    labels_one_hot = label_binarize(labels, classes=range(n_classes))
+
+    # List to store average precision for each class
+    ap_scores = []
+
+    # Calculate AP for each class
+    for class_index in range(n_classes):
+        # Extract the true labels and predictions for the current class
+        class_labels = labels_one_hot[:, class_index]
+        class_predictions = predicted_probabilities[:, class_index]
+
+        # Calculate the AP for the current class
+        ap = average_precision_score(class_labels, class_predictions)
+
+        # Store the AP score
+        ap_scores.append(ap)
+
+    # Calculate the mean of the AP scores
+    mAP = np.mean(ap_scores)
+
+    return mAP
+
+
 def evaluate_metrics(
     labels: np.ndarray,
     predictions: np.ndarray,
-    logits: np.ndarray,
+    probabilities: np.ndarray,
     loss_function: Union[CrossEntropyLoss, MultiMarginLoss],
     top_k: List[int],
+    n_classes: int,
 ) -> Dict[str, float]:
     """
     Evaluates loss, accuracy, recall, precision, f1-score and top k accuracy on given labels and predictions.
 
     Args:
-        labels (np.ndarray): True labels.
-        predictions (np.ndarray): Predicted labels.
-        logits (np.ndarray): Predicted probabilities of class labels.
-        loss_function (Union[CrossEntropyLoss, MultiMarginLoss]): The loss function.
-        top_k (List[int]): The values to use for k when calculating top k accuracy.
+        - labels (np.ndarray): True labels.
+        - predictions (np.ndarray): Predicted labels.
+        - probabilities (np.ndarray): Predicted probabilities of class labels.
+        - loss_function (Union[CrossEntropyLoss, MultiMarginLoss]): The loss function.
+        - top_k (List[int]): The values to use for k when calculating top k accuracy.
+        - n_classes (int): The number of classes in the multiclass classification problem.
 
     Returns (Dict[str]): The calculated metrics.
     """
     torch_labels = torch.from_numpy(labels).long()
     predictions = torch.from_numpy(predictions)
-    torch_logits = torch.from_numpy(logits)
-    loss = loss_function(torch_logits, torch_labels).item()
+    torch_probabilities = torch.from_numpy(probabilities)
+    loss = loss_function(torch_probabilities, torch_labels).item()
 
     accuracy = accuracy_score(y_pred=predictions, y_true=labels)
-    recall = recall_score(y_pred=predictions, y_true=labels, average="macro")
-    precision = precision_score(y_pred=predictions, y_true=labels, average="macro")
-    f1 = f1_score(y_pred=predictions, y_true=labels, average="macro")
+    macro_recall = recall_score(y_pred=predictions, y_true=labels, average="macro")
+    weighted_recall = recall_score(
+        y_pred=predictions, y_true=labels, average="weighted"
+    )
+    macro_precision = precision_score(
+        y_pred=predictions, y_true=labels, average="macro"
+    )
+    weighted_precision = precision_score(
+        y_pred=predictions, y_true=labels, average="weighted"
+    )
+    macro_f1 = f1_score(y_pred=predictions, y_true=labels, average="macro")
+    weighted_f1 = f1_score(y_pred=predictions, y_true=labels, average="weighted")
+
+    mean_average_precision = mean_average_precision_score(
+        labels=labels, predicted_probabilities=probabilities, n_classes=n_classes
+    )
     top_k_accuracy = {}
 
     for k in top_k:
-        score = top_k_accuracy_score(y_score=logits, y_true=labels, k=k)
+        score = top_k_accuracy_score(y_score=probabilities, y_true=labels, k=k)
         top_k_accuracy[k] = score
 
     result = {
         "loss": loss,
         "accuracy": accuracy,
-        "recall": recall,
-        "precision": precision,
-        "f1-score": f1,
+        "macro_recall": macro_recall,
+        "weighted_recall": weighted_recall,
+        "macro_precision": macro_precision,
+        "weighted_precision": weighted_precision,
+        "macro_f1": macro_f1,
+        "weighted_f1": weighted_f1,
         "top_k_accuracy": top_k_accuracy,
+        "mean_average_precision": mean_average_precision,
     }
     return result
 

@@ -126,8 +126,15 @@ class CustomTrainer(BaseTrainer):
         model_fn = supported_models[model_name]
         model_weights = supported_weights[model_name]
         model = model_fn(weights=model_weights)
-        in_features = model.fc.in_features
-        model.fc = nn.Linear(in_features, num_classes)
+
+        if model_name.startswith("mnasnet"):
+            model.classifier = nn.Sequential(
+                nn.Dropout(p=0.2, inplace=False),
+                nn.Linear(model.classifier[1].in_features, num_classes),
+            )
+        else:
+            in_features = model.fc.in_features
+            model.fc = nn.Linear(in_features, num_classes)
 
         model.load_state_dict(model_state)
 
