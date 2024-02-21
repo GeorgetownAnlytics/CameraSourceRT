@@ -15,13 +15,6 @@ from preprocessing.train_validation_split import (
 )
 from utils import contains_subdirectories
 
-# Configure logging
-logging.basicConfig(
-    filename=paths.TRAINING_LOGS_FILE,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s: %(message)s",
-)
-
 
 class CustomDataLoader:
     OUTPUT_FOLDER = "output/image_output"
@@ -54,8 +47,8 @@ class CustomDataLoader:
 
     def create_data_loaders(self):
 
-        train_folder = os.path.join(self.base_folder, "train")
-        test_folder = os.path.join(self.base_folder, "test")
+        train_folder = os.path.join(self.base_folder, "training")
+        test_folder = os.path.join(self.base_folder, "testing")
         validation_folder = os.path.join(self.base_folder, "validation")
 
         validation_exists = os.path.exists(
