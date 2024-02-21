@@ -15,9 +15,12 @@ from score import (
 )
 from logger import get_logger
 
+logger = get_logger(__file__)
 
-def main():
-    logger = get_logger(task_name="train")
+def run_training():
+    logger.info("Starting training...")
+    
+    logger.info("Loading config...")
     config = read_json_as_dict(paths.CONFIG_FILE)
 
     model_name = config.get("model_name")
@@ -43,6 +46,7 @@ def main():
     logger.info(f"Setting seeds to: {config['seed']}")
     set_seeds(config["seed"])
 
+    logger.info("Creating data loader...")
     custom_data_loader = CustomDataLoader(
         base_folder=paths.INPUTS_DIR,
         batch_size=batch_size,
@@ -50,9 +54,6 @@ def main():
         image_size=image_size,
         validation_size=validation_size,
     )
-
-    logger.info(f"\nWorking on model: {model_name}")
-
     train_loader, test_loader, validation_loader = (
         custom_data_loader.train_loader,
         custom_data_loader.test_loader,
@@ -65,7 +66,7 @@ def main():
         train_loader, test_loader, validation_loader, num_classes, model_name
     )
 
-    logger.info(f"Setting device to {device}")
+    logger.info(f"Using device {device}")
     trainer.set_device(device)
     trainer.set_loss_function(loss_function)
 
@@ -76,22 +77,22 @@ def main():
     logger.info("Saving model...")
     trainer.save_model()
 
-    logger.info("Saving metrics to csv...")
+    logger.info("Saving training metrics to csv...")
     save_metrics_to_csv(
         metrics_history,
         output_folder=paths.MODEL_ARTIFACTS_DIR,
         file_name="train_validation_metrics.csv",
     )
 
-    logger.info("Predicting train labels...")
+    logger.info("Predicting labels on training data...")
     train_labels, train_pred, _ = trainer.predict(train_loader)
 
-    logger.info("Saving train confusion matrix...")
+    logger.info("Saving confusion matrix for training data...")
     train_cm = calculate_confusion_matrix(
         all_labels=train_labels, all_predictions=train_pred
     )
 
-    logger.info("Saving train confusion matrix plot...")
+    logger.info("Saving confusion matrix plot for training data...")
     plot_and_save_confusion_matrix(
         cm=train_cm,
         phase="train",
@@ -126,4 +127,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_training()
