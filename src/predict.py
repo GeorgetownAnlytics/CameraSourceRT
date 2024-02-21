@@ -88,7 +88,7 @@ def predict():
     )
 
     logger.info(
-        f"Test - After Training: Loss: {test_metrics['loss']}, Accuracy: {test_metrics['accuracy']}, Macro F1 Score: {test_metrics['macro_f1']}"
+        f"Test metrics: Loss: {test_metrics['loss']}, Accuracy: {test_metrics['accuracy']}, Macro F1 Score: {test_metrics['macro_f1']}"
     )
 
 
