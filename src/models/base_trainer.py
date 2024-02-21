@@ -124,7 +124,8 @@ class BaseTrainer:
         # Ensure at least 1 warmup epoch
         warmup_epochs = max(1, num_epochs // 5)
         self.model.train()
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        # optimizer = torch.optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.1)
         scheduler = LambdaLR(
             optimizer,
             lr_lambda=self._warmup_cosine_annealing(0.001, warmup_epochs, num_epochs),
@@ -194,6 +195,9 @@ class BaseTrainer:
                     metrics_history=metrics_history,
                     score_dict=val_metrics,
                 )
+                print(f"Validation metrics after epoch {epoch}: {metrics_history}")
+            else:
+                print(f"Training metrics after epoch {epoch}: {metrics_history}")
 
             scheduler.step()
 
@@ -247,12 +251,14 @@ class BaseTrainer:
             Tuple[np.ndarray, np.ndarray, np.ndarray]: (Truth labels, Predicted class labels, Probabilities).
         """
         self.model.eval()
+        self.model.to(self.device)
         with torch.no_grad():
             all_labels, all_predicted, all_probs = (
                 np.array([]),
                 np.array([]),
                 np.array([]),
             )
+            
             for inputs, labels in data_loader:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)
