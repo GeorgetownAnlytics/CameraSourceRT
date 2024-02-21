@@ -1,342 +1,92 @@
 {
-    "resnet18": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.1
-        }
-    ],
-    "resnet34": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "resnet50": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "resnet101": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "resnet152": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "inceptionV1": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "inceptionV3": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                299,
-                299
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "mnasnet0_5": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "mnasnet1_0": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ],
-    "mnasnet1_3": [
-        {
-            "name": "batch_size",
-            "short_desc": "The number of samples per batch",
-            "type": "int",
-            "search_type": "uniform",
-            "default": 256,
-            "range_low": 32,
-            "range_high": 512
-        },
-        {
-            "name": "image_size",
-            "short_desc": "The size of image used in preprocessing step of resizing images",
-            "type": "list",
-            "default": [
-                224,
-                224
-            ]
-        },
-        {
-            "name": "optimizer",
-            "type": "string",
-            "default": "adam",
-            "possible_values": [
-                "adam",
-                "sgd"
-            ]
-        },
-        {
-            "name": "lr",
-            "type": "float",
-            "default": 0.001
-        }
-    ]
+    "resnet18": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "adam",
+        "lr": 0.1
+    },
+    "resnet34": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "resnet50": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "resnet101": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "resnet152": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "inceptionV1": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "inceptionV3": {
+        "batch_size": 256,
+        "image_size": [
+            299,
+            299
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "mnasnet0_5": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "mnasnet1_0": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    },
+    "mnasnet1_3": {
+        "batch_size": 256,
+        "image_size": [
+            244,
+            244
+        ],
+        "optimizer": "sgd",
+        "lr": 0.001
+    }
 }

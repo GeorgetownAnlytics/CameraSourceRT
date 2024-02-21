@@ -96,13 +96,12 @@ def get_model_parameters(
     model_parameters = hyperparameters_dict[model_name]
 
     if not hyperparameter_tuning:
-        hyperparameters = {i["name"]: i["default"] for i in model_parameters}
+        return model_parameters
 
     else:
         # TODO: Read hyperparameters in case of tuning.
         pass
-
-    return hyperparameters
+    return None
 
 
 def is_segment_in_path(segment: str, path: str) -> bool:

@@ -45,6 +45,8 @@ def main():
             hyperparameter_tuning=config["hyperparameter_tuning"],
         )
 
+        print(params)
+
         batch_size = params["batch_size"]
         image_size = params["image_size"]
         optimizer = params.get("optimizer")
