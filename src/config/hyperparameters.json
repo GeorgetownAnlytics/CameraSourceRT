@@ -17,6 +17,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.1
         }
     ],
     "resnet34": [
@@ -37,6 +51,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "resnet50": [
@@ -57,6 +85,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "resnet101": [
@@ -77,6 +119,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "resnet152": [
@@ -97,6 +153,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "inceptionV1": [
@@ -117,6 +187,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "inceptionV3": [
@@ -137,6 +221,20 @@
                 299,
                 299
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "mnasnet0_5": [
@@ -157,6 +255,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "mnasnet1_0": [
@@ -177,6 +289,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ],
     "mnasnet1_3": [
@@ -197,6 +323,20 @@
                 224,
                 224
             ]
+        },
+        {
+            "name": "optimizer",
+            "type": "string",
+            "default": "adam",
+            "possible_values": [
+                "adam",
+                "sgd"
+            ]
+        },
+        {
+            "name": "lr",
+            "type": "float",
+            "default": 0.001
         }
     ]
 }

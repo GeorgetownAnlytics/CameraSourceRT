@@ -17,16 +17,21 @@ from logger import get_logger
 
 logger = get_logger(__file__)
 
-def run_training():
+
+def run_training(
+    train_folder_path: str = paths.INPUTS_DIR,
+    hyperparameters_file_path: str = paths.HYPERPARAMETERS_FILE,
+    config_file_path: str = paths.CONFIG_FILE,
+):
     logger.info("Starting training...")
-    
-    logger.info("Loading config...")
-    config = read_json_as_dict(paths.CONFIG_FILE)
+
+    logger.info("Loading config file...")
+    config = read_json_as_dict(config_file_path)
 
     model_name = config.get("model_name")
     params = get_model_parameters(
         model_name=model_name,
-        hyperparameters_file_path=paths.HYPERPARAMETERS_FILE,
+        hyperparameters_file_path=hyperparameters_file_path,
         hyperparameter_tuning=config["hyperparameter_tuning"],
     )
 
@@ -35,8 +40,11 @@ def run_training():
     loss_choice = config.get("loss_function")
     num_workers = config.get("num_workers")
     validation_size = config.get("validation_size")
+
     batch_size = params.get("batch_size")
     image_size = params.get("image_size")
+    optimizer = params.get("optimizer")
+    lr = params.get("lr")
 
     loss_function = (
         torch.nn.CrossEntropyLoss()
@@ -47,23 +55,22 @@ def run_training():
     set_seeds(config["seed"])
 
     logger.info("Creating data loader...")
-    custom_data_loader = CustomDataLoader(
-        base_folder=paths.INPUTS_DIR,
+    data_loader = CustomDataLoader(
+        base_folder=train_folder_path,
         batch_size=batch_size,
         num_workers=num_workers,
         image_size=image_size,
         validation_size=validation_size,
     )
-    train_loader, test_loader, validation_loader = (
-        custom_data_loader.train_loader,
-        custom_data_loader.test_loader,
-        custom_data_loader.validation_loader,
-    )
-
-    num_classes = len(train_loader.dataset.classes)
 
     trainer = CustomTrainer(
-        train_loader, test_loader, validation_loader, num_classes, model_name
+        data_loader.train_loader,
+        data_loader.test_loader,
+        data_loader.validation_loader,
+        num_classes=data_loader.num_classes,
+        model_name=model_name,
+        optimizer=optimizer,
+        lr=lr,
     )
 
     logger.info(f"Using device {device}")
@@ -85,7 +92,7 @@ def run_training():
     )
 
     logger.info("Predicting labels on training data...")
-    train_labels, train_pred, _ = trainer.predict(train_loader)
+    train_labels, train_pred, _ = trainer.predict(data_loader.train_loader)
 
     logger.info("Saving confusion matrix for training data...")
     train_cm = calculate_confusion_matrix(
@@ -101,9 +108,11 @@ def run_training():
         class_names=trainer.train_loader.dataset.classes,
     )
 
-    if validation_loader:
+    if data_loader.validation_loader:
         logger.info("Predicting validation labels...")
-        validiation_labels, validation_pred, _ = trainer.predict(validation_loader)
+        validiation_labels, validation_pred, _ = trainer.predict(
+            data_loader.validation_loader
+        )
 
         logger.info("Saving validation confusion matrix...")
         validation_cm = calculate_confusion_matrix(
@@ -117,6 +126,10 @@ def run_training():
             model_name=model_name,
             output_folder=paths.MODEL_ARTIFACTS_DIR,
             class_names=trainer.train_loader.dataset.classes,
+        )
+
+        logger.info(
+            f"Validation Accuracy (Last Epoch): {metrics_history['validation accuracy'][-1]}"
         )
 
     logger.info(

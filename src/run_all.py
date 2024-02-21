@@ -47,6 +47,8 @@ def main():
 
         batch_size = params["batch_size"]
         image_size = params["image_size"]
+        optimizer = params.get("optimizer")
+        lr = params.get("lr")
 
         custom_data_loader = CustomDataLoader(
             batch_size=batch_size,
@@ -70,12 +72,14 @@ def main():
         num_classes = len(train_loader.dataset.classes)
 
         trainer = CustomTrainer(
-            train_loader,
-            test_loader,
-            validation_loader,
-            num_classes,
-            model_name,
-            model_artifacts_folder,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            validation_loader=validation_loader,
+            num_classes=num_classes,
+            model_name=model_name,
+            output_folder=model_artifacts_folder,
+            optimizer=optimizer,
+            lr=lr,
         )
         trainer.set_device(device)
         trainer.set_loss_function(loss_function)

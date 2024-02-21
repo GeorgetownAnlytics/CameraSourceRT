@@ -28,7 +28,11 @@ def get_image_paths_and_labels(train_folder_path):
 
 def split_and_move_validation_files(image_paths, image_labels, validation_size):
     _, X_valid, _, y_valid = train_test_split(
-        image_paths, image_labels, test_size=validation_size, random_state=42
+        image_paths,
+        image_labels,
+        test_size=validation_size,
+        stratify=image_labels,
+        random_state=42,
     )
     for file_path, label in tqdm(
         zip(X_valid, y_valid), desc="Moving validation files..."

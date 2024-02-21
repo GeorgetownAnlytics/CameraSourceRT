@@ -44,6 +44,7 @@ class CustomDataLoader:
         (self.train_loader, self.test_loader, self.validation_loader) = (
             self.create_data_loaders()
         )
+        self.num_classes = len(self.train_loader.dataset.classes)
 
     def create_data_loaders(self):
 
@@ -54,10 +55,6 @@ class CustomDataLoader:
         validation_exists = os.path.exists(
             validation_folder
         ) and contains_subdirectories(validation_folder)
-
-        self.num_classes = len(
-            [i for i in os.listdir(train_folder) if os.path.isdir(i)]
-        )
 
         image_paths, image_labels = get_image_paths_and_labels(train_folder)
 

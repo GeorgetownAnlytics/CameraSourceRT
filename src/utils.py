@@ -189,6 +189,31 @@ def list_paths(root_dir):
     return paths
 
 
+def get_optimizer(optimizer_str: str):
+    optimizers = {
+        "sgd": T.optim.SGD,
+        "adam": T.optim.Adam,
+    }
+
+    if optimizer_str not in optimizers.keys():
+        raise ValueError(f"{optimizer_str} is not a recognized optimizer.")
+
+    return optimizers[optimizer_str]
+
+
+def get_dataloader_parameters(config_dict: Dict) -> Dict:
+    dataloader_params_names = [
+        "batch_size",
+        "num_workers",
+        "image_size",
+        "validation_size",
+    ]
+
+    return {
+        k: config_dict[k] for k in dataloader_params_names if k in config_dict.keys()
+    }
+
+
 def get_peak_memory_usage() -> Union[float, None]:
     """
     Returns the peak memory usage by current cuda device if available
@@ -225,7 +250,7 @@ class TimeAndMemoryTracker(object):
         elapsed_time = self.end_time - self.start_time
 
         self.logger.info(f"Execution time: {elapsed_time:.2f} seconds")
-        self.logger.info(f"Memory allocated (peak): {peak / 1024**2:.2f} MB")
+        self.logger.info(f"CPU Memory allocated (peak): {peak / 1024**2:.2f} MB")
 
         if cuda_peak:
             self.logger.info(f"CUDA Memory allocated (peak): {cuda_peak:.2f} MB")

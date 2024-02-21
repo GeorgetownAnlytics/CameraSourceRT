@@ -124,10 +124,9 @@ class BaseTrainer:
         # Ensure at least 1 warmup epoch
         warmup_epochs = max(1, num_epochs // 5)
         self.model.train()
-        # optimizer = torch.optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.1)
+
         scheduler = LambdaLR(
-            optimizer,
+            self.optimizer,
             lr_lambda=self._warmup_cosine_annealing(0.001, warmup_epochs, num_epochs),
         )
 
@@ -147,7 +146,7 @@ class BaseTrainer:
 
             for inputs, labels in self.train_loader:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 outputs = self.model(inputs)
                 if isinstance(outputs, tuple):
                     outputs = outputs[0]
@@ -164,7 +163,7 @@ class BaseTrainer:
                     top_k=[5],
                     n_classes=self.num_classes,
                 )
-                optimizer.step()
+                self.optimizer.step()
                 running_loss += loss.item()
                 train_progress_bar.update(1)
 
@@ -195,10 +194,9 @@ class BaseTrainer:
                     metrics_history=metrics_history,
                     score_dict=val_metrics,
                 )
-                print(f"Validation metrics after epoch {epoch}: {metrics_history}")
-            else:
-                print(f"Training metrics after epoch {epoch}: {metrics_history}")
+                print(f"Validation metrics after epoch {epoch}: {val_metrics}")
 
+            print(f"Training metrics after epoch {epoch}: {train_metrics}")
             scheduler.step()
 
         train_progress_bar.close()
@@ -258,7 +256,7 @@ class BaseTrainer:
                 np.array([]),
                 np.array([]),
             )
-            
+
             for inputs, labels in data_loader:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)

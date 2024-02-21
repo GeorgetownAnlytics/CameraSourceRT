@@ -5,6 +5,7 @@ import torch.nn as nn
 from torchvision import models
 from .base_trainer import BaseTrainer
 from config import paths
+from torch.optim import Optimizer
 
 
 supported_models = {
@@ -34,6 +35,16 @@ supported_weights = {
 }
 
 
+def get_optimizer(optimizer: str) -> type[Optimizer]:
+    supported_optimizers = {"adam": torch.optim.Adam, "sgd": torch.optim.SGD}
+
+    if optimizer not in supported_optimizers.keys():
+        raise ValueError(
+            f"{optimizer} is not a supported optimizer. Supported: {supported_optimizers}"
+        )
+    return supported_optimizers[optimizer]
+
+
 class CustomTrainer(BaseTrainer):
     """
     A trainer class for custom models.
@@ -55,6 +66,8 @@ class CustomTrainer(BaseTrainer):
         validation_loader,
         num_classes,
         model_name,
+        optimizer: str = "adam",
+        lr: float = 0.001,
         output_folder=paths.OUTPUTS_DIR,
     ):
         """
@@ -98,6 +111,9 @@ class CustomTrainer(BaseTrainer):
             validation_loader,
             output_folder=output_folder,
         )
+
+        self.lr = lr
+        self.optimizer = get_optimizer(optimizer)(self.model.parameters(), lr=lr)
 
     def save_model(self, predictor_path=paths.PREDICTOR_DIR):
         os.makedirs(predictor_path, exist_ok=True)
