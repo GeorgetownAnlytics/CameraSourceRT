@@ -71,7 +71,24 @@ class BaseTrainer:
         """
         self.loss_function = loss_function
 
-    def create_metrics_history_dict(self, phase: str):
+    def create_metrics_history_dict(self, phase: str) -> Dict[str, List]:
+        """
+        Creates a dictionary to track the history of various metrics for a given phase.
+
+        This method initializes a dictionary with lists to keep track of epoch numbers and
+        various metrics such as loss, accuracy, macro recall, macro precision, macro F1 score,
+        weighted recall, weighted precision, weighted F1 score, top-k accuracy, and mean
+        average precision for the specified phase (e.g., training, validation, or testing).
+
+        Parameters:
+        - phase (str): The phase for which the metrics are being tracked. Typically, this
+          would be 'train', 'val', or 'test'.
+
+        Returns:
+        - Dict[str, List]: A dictionary with keys for each metric to be tracked, where each
+          key maps to a list for recording the history of that metric over epochs.
+        """
+
         metrics_history = {
             "epoch": [],
             f"{phase} loss": [],
@@ -93,7 +110,7 @@ class BaseTrainer:
         metrics_history: dict[str, list],
         score_dict: dict,
         epoch_num: int = None,
-    ):
+    ) -> Dict[str, List]:
         if epoch_num:
             metrics_history["epoch"].append(epoch_num)
         for key in metrics_history.keys():

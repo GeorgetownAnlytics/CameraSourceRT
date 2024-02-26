@@ -35,7 +35,7 @@ supported_weights = {
 }
 
 
-def get_optimizer(optimizer: str) -> type[Optimizer]:
+def get_optimizer(optimizer: str) -> Optimizer:
     supported_optimizers = {"adam": torch.optim.Adam, "sgd": torch.optim.SGD}
 
     if optimizer not in supported_optimizers.keys():
@@ -115,7 +115,24 @@ class CustomTrainer(BaseTrainer):
         self.lr = lr
         self.optimizer = get_optimizer(optimizer)(self.model.parameters(), lr=lr)
 
-    def save_model(self, predictor_path=paths.PREDICTOR_DIR):
+    def save_model(self, predictor_path: str = paths.PREDICTOR_DIR) -> None:
+        """
+        Saves the model's state dictionary and training parameters to the specified path.
+
+        This method creates the directory if it doesn't exist and saves two files: one with
+        the model's parameters (such as data loaders, number of classes, model name, and
+        output folder) and another with the model's state dictionary. The parameters are
+        saved in a joblib file, and the model's state is saved in a PyTorch file.
+
+        Parameters:
+        - predictor_path (str, optional): The directory path where the model parameters
+          and state are to be saved. Defaults to paths.PREDICTOR_DIR.
+
+        Note:
+        - The method assumes 'paths.PREDICTOR_DIR' is a valid directory path defined in
+          the 'config' module.
+        - This method does not return anything.
+        """
         os.makedirs(predictor_path, exist_ok=True)
         model_params = {
             "train_loader": self.train_loader,
@@ -131,7 +148,16 @@ class CustomTrainer(BaseTrainer):
         torch.save(self.model.state_dict(), model_path)
 
     @staticmethod
-    def load_model(predictor_path=paths.PREDICTOR_DIR):
+    def load_model(predictor_path: str = paths.PREDICTOR_DIR) -> "CustomTrainer":
+        """
+        Loads a pretrained model and its training configuration from a specified path.
+
+        Args:
+        - predictor_path (str): Path to the directory with model's parameters and state. Defaults to paths.PREDICTOR_DIR.
+
+        Returns:
+        - CustomTrainer: A trainer object with the loaded model and training configuration.
+        """
         params_path = os.path.join(predictor_path, "model_params.joblib")
         model_path = os.path.join(predictor_path, "model_state.pth")
         params = joblib.load(params_path)

@@ -22,7 +22,7 @@ def run_training(
     train_folder_path: str = paths.INPUTS_DIR,
     hyperparameters_file_path: str = paths.HYPERPARAMETERS_FILE,
     config_file_path: str = paths.CONFIG_FILE,
-):
+) -> None:
     logger.info("Starting training...")
 
     logger.info("Loading config file...")
