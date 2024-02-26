@@ -68,6 +68,9 @@ class CustomTrainer(BaseTrainer):
         model_name,
         optimizer: str = "adam",
         lr: float = 0.001,
+        early_stopping: bool = True,
+        early_stopping_patience: int = 10,
+        early_stopping_delta: float = 0.05,
         output_folder=paths.OUTPUTS_DIR,
     ):
         """
@@ -90,6 +93,7 @@ class CustomTrainer(BaseTrainer):
         self.num_classes = num_classes
         self.model_name = model_name
         self.output_folder = output_folder
+        self.lr = lr
 
         model_fn = supported_models[model_name]
         model_weights = supported_weights[model_name]
@@ -104,16 +108,19 @@ class CustomTrainer(BaseTrainer):
             in_features = model.fc.in_features
             model.fc = nn.Linear(in_features, num_classes)
 
+        self.model = model
+        self.optimizer = get_optimizer(optimizer)(self.model.parameters(), lr=lr)
+
         super().__init__(
             model,
             train_loader,
             test_loader,
             validation_loader,
+            early_stopping=early_stopping,
+            early_stopping_patience=early_stopping_patience,
+            early_stopping_delta=early_stopping_delta,
             output_folder=output_folder,
         )
-
-        self.lr = lr
-        self.optimizer = get_optimizer(optimizer)(self.model.parameters(), lr=lr)
 
     def save_model(self, predictor_path: str = paths.PREDICTOR_DIR) -> None:
         """

@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 from config import paths
-from models.dataloader import CustomDataLoader
+from torch_utils.dataloader import CustomDataLoader
 from models.custom_trainer import CustomTrainer
 from utils import read_json_as_dict, set_seeds, get_model_parameters
 from score import (

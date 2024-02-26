@@ -12,6 +12,9 @@
   "validation_size": 0.0,
   "num_workers": 0,
   "loss_function": "crossentropy",
+  "early_stopping": true,
+  "early_stopping_patience": 20,
+  "early_stopping_delta": 0.005,
   "hyperparameter_tuning": false,
   "run_all_batch_size": 256
 }
